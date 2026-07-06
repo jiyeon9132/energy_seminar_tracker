@@ -159,7 +159,7 @@ SEMINARS = [
 ]
 
 
-def build_message() -> str:
+defbuild_message() -> str:
     now = datetime.now().strftime("%Y.%m.%d")
     total = len(SEMINARS)
     conf  = sum(1 for s in SEMINARS if s["status"] == "일정확정")
@@ -169,32 +169,46 @@ def build_message() -> str:
     free  = sum(1 for s in SEMINARS if s["cost"] == "무료")
 
     lines = [
-        "[에너지·전력 세미나 주간 브리핑]",
+        "📋 에너지·전력 세미나 주간 브리핑",
         f"업데이트: {now}",
-        f"전체 {total}건 | 확정 {conf} | 조율중 {plan} | 추정 {est} | 최우선 {high} | 무료 {free}",
+        f"전체 {total}건  |  확정 {conf}  |  조율중 {plan}  |  추정 {est}",
+        f"최우선 {high}건  |  무료 {free}건",
         "",
     ]
+
+    STATUS_LABEL = {
+        "일정확정":   "🔵 일정확정",
+        "일정조율중": "🟡 일정조율중",
+        "개최추정":   "⚪ 개최추정",
+    }
+    PRIO_LABEL = {
+        "최우선": "최우선",
+        "우선":   "우선",
+        "참고용": "참고용",
+    }
 
     for status in ["일정확정", "일정조율중", "개최추정"]:
         group = [s for s in SEMINARS if s["status"] == status]
         if not group:
             continue
-        lines.append(f"[ {status} | {len(group)}건 ]")
-        lines.append("-" * 32)
-        for i, s in enumerate(group, 1):
-            prio_mark = {"최우선": "***", "우선": "**", "참고용": "*"}.get(s["priority"], "")
-            lines.append(f"{i}. {prio_mark} {s['title']}")
-            lines.append(f"   일시: {s['date']}")
-            lines.append(f"   주관: {s['org']}")
-            lines.append(f"   장소: {s['venue']}")
-            lines.append(f"   비용: {s['cost']}")
-            lines.append(f"   연사: {s['speakers'][0]}")
-            lines.append(f"   출처: {s['source']}")
-            lines.append("")
+
+        lines.append(f"{'━' * 20}")
+        lines.append(f"{STATUS_LABEL[status]}  ({len(group)}건)")
         lines.append("")
 
+        for i, s in enumerate(group, 1):
+            prio = PRIO_LABEL[s["priority"]]
+            lines.append(f"{i}. [{prio}] {s['title']}")
+            lines.append(f"   일시 | {s['date']}")
+            lines.append(f"   주관 | {s['org']}")
+            lines.append(f"   장소 | {s['venue']}")
+            lines.append(f"   비용 | {s['cost']}")
+            lines.append(f"   연사 | {s['speakers'][0]}")
+            lines.append(f"   출처 | {s['source']}")
+            lines.append("")
+
     lines += [
-        "=" * 32,
+        f"{'━' * 20}",
         "개최추정 행사는 반드시 직접 확인 후 참석 결정하세요.",
         "모니터링: energy.or.kr / mcee.go.kr / kpx.or.kr / ampos.nanet.go.kr",
     ]
