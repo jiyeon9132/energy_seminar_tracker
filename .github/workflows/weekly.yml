@@ -12,11 +12,14 @@ jobs:
     steps:
       - name: 저장소 체크아웃
         uses: actions/checkout@v4
+        with:
+          node-version: '24'
 
       - name: Python 설치
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          node-version: '24'
 
       - name: 패키지 설치
         run: pip install python-telegram-bot
