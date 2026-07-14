@@ -18,7 +18,8 @@
   .container{max-width:1100px;margin:0 auto;padding:24px}
   .month-tabs{display:flex;gap:6px;margin-bottom:20px}
   .mtab{font-size:12px;padding:5px 16px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:var(--surface);color:var(--text-2);transition:all .15s}
-  .mtab.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:500}
+  .mtab.past{opacity:.55}
+  .mtab.past:hover{opacity:.8}
   .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
   .metric{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
   .metric-label{font-size:11px;color:var(--text-3);margin-bottom:6px;font-weight:500;letter-spacing:.3px}
@@ -43,7 +44,9 @@
   .cal-cell.empty{background:var(--bg);opacity:.5}
   .cal-cell.today .cal-day-num{background:var(--blue);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:600}
   .cal-day-num{font-size:11px;color:var(--text-2);margin-bottom:4px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:500}
-  .cal-event{font-size:9.5px;padding:2px 5px;border-radius:4px;margin-bottom:2px;line-height:1.4;cursor:default;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cal-event{font-size:9.5px;padding:2px 5px;border-radius:4px;margin-bottom:2px;line-height:1.4;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .15s}
+  .cal-event:hover{opacity:.75}
+  .card.highlight{border-color:var(--blue);box-shadow:0 0 0 3px rgba(45,107,228,.15);transition:border-color .2s,box-shadow .2s}
   .ev-high{background:var(--green-lt);color:var(--green)}
   .ev-med{background:var(--amber-lt);color:var(--amber)}
   .ev-low{background:var(--bg);color:var(--text-3);border:1px solid var(--border)}
@@ -81,23 +84,44 @@
   .footer{text-align:center;padding:32px 0 24px;font-size:11px;color:var(--text-3);border-top:1px solid var(--border);margin-top:40px}
   .monitor-links{display:flex;gap:16px;justify-content:center;margin-top:8px;flex-wrap:wrap}
   .monitor-links a{color:var(--blue);text-decoration:none}
+  /* 비밀번호 화면 */
+  #lock-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999}
+  .lock-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:320px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+  .lock-dot{width:10px;height:10px;border-radius:50%;background:var(--blue);margin:0 auto 20px}
+  .lock-title{font-size:15px;font-weight:600;color:var(--text-1);margin-bottom:6px}
+  .lock-sub{font-size:12px;color:var(--text-3);margin-bottom:24px}
+  .lock-input{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;text-align:center;letter-spacing:6px;outline:none;font-family:inherit;color:var(--text-1);background:var(--surface);transition:border-color .15s}
+  .lock-input:focus{border-color:var(--blue)}
+  .lock-input.error{border-color:#E53E3E;animation:shake .3s ease}
+  .lock-error{font-size:11px;color:#E53E3E;margin-top:8px;min-height:16px}
+  .lock-btn{margin-top:16px;width:100%;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:opacity .15s}
+  .lock-btn:hover{opacity:.88}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 </style>
 </head>
 <body>
+<div id="lock-screen">
+  <div class="lock-box">
+    <div class="lock-dot"></div>
+    <div class="lock-title">에너지 세미나 대시보드</div>
+    <div class="lock-sub">접근하려면 비밀번호를 입력하세요</div>
+    <input class="lock-input" id="lock-input" type="password" maxlength="10" placeholder="····" autocomplete="off" />
+    <div class="lock-error" id="lock-error"></div>
+    <button class="lock-btn" id="lock-btn">확인</button>
+  </div>
+</div>
+
 <header class="header">
   <div class="header-left">
     <div class="logo-dot"></div>
     <span class="header-title">에너지 세미나 대시보드</span>
-    <span class="header-sub">재생에너지 · ESS · 전기차충전 · 전력 · 수소 · CCS · 배터리 | 대관업무팀</span>
+    <span class="header-sub">재생에너지 · ESS · 전기차충전 · 전력 · 수소 · CCS · 배터리 | 성장지원실</span>
   </div>
   <span class="updated" id="updated-date"></span>
 </header>
 
 <div class="container">
-  <div class="month-tabs">
-    <span class="mtab" data-m="6">6월</span>
-    <span class="mtab active" data-m="7">7월</span>
-  </div>
+  <div class="month-tabs" id="month-tabs"></div>
   <div class="metrics">
     <div class="metric"><div class="metric-label">전체 행사</div><div class="metric-val" id="m-total">—</div></div>
     <div class="metric"><div class="metric-label">일정 확정</div><div class="metric-val blue" id="m-conf">—</div></div>
@@ -141,6 +165,39 @@
 </div>
 
 <script>
+// 비밀번호 처리
+(function(){
+  const PW='1013';
+  const SESSION_KEY='seminar_auth';
+  const lock=document.getElementById('lock-screen');
+  const input=document.getElementById('lock-input');
+  const btn=document.getElementById('lock-btn');
+  const err=document.getElementById('lock-error');
+
+  // 세션 중 인증된 경우 바로 해제
+  if(sessionStorage.getItem(SESSION_KEY)==='ok'){
+    lock.style.display='none';
+    return;
+  }
+
+  function tryUnlock(){
+    if(input.value===PW){
+      sessionStorage.setItem(SESSION_KEY,'ok');
+      lock.style.display='none';
+    } else {
+      err.textContent='비밀번호가 올바르지 않습니다';
+      input.classList.add('error');
+      input.value='';
+      setTimeout(()=>input.classList.remove('error'),400);
+      input.focus();
+    }
+  }
+
+  btn.addEventListener('click', tryUnlock);
+  input.addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
+  input.focus();
+})();
+
 const D6=[
   {title:"전력망 확충 국회토론회 (HVDC·에너지고속도로)",status:"일정확정",prio:"최우선",day:10,date:"2026.06.10 (화) 13:30",org:"이언주 의원실 (더불어민주당)",venue:"국회의원회관 제1세미나실",cost:"무료",content:"서해안 HVDC 에너지고속도로 실현 방안 / 재생에너지 연계 전력망 확충 / 수도권 전력 수급 불균형 해소",speakers:"이언주 의원 (더불어민주당) / 문양택 전력산업정책관 (기후에너지환경부) / 서성태 전력망정책과장 (기후에너지환경부) / 이성학 계통정책기획실장 (한국전력공사)",src:"ampos.nanet.go.kr",url:"https://ampos.nanet.go.kr"},
   {title:"태양광 RPS 고정가격계약 입찰 설명회",status:"일정조율중",prio:"최우선",day:null,date:"2026.06 초~중순",org:"한국에너지공단 신재생에너지센터",venue:"온라인 또는 에너지공단 강당",cost:"무료",content:"마지막 RPS 고정가격계약 입찰 공고 / 입찰 방식·기준 설명 / 2027년 재생에너지 계약시장 전환 로드맵",speakers:"최재관 이사장 (한국에너지공단) / 강부영 청정전력전환과장 (기후에너지환경부)",src:"blog.haezoom.com (2026.05.27)",url:"https://blog.haezoom.com/notice_46/"},
@@ -167,21 +224,51 @@ const D7=[
 const BS={일정확정:'b-conf',일정조율중:'b-plan',개최추정:'b-est'};
 const BP={최우선:'b-high',우선:'b-med',참고용:'b-low'};
 const EP={최우선:'ev-high',우선:'ev-med',참고용:'ev-low'};
-let curM=7,fPrio='all',fStatus='all';
+// 날짜 기준
+const NOW = new Date();
+const THIS_M = NOW.getMonth() + 1;
+const THIS_Y = NOW.getFullYear();
+const NEXT_M = THIS_M === 12 ? 1 : THIS_M + 1;
+const NEXT_Y = THIS_M === 12 ? THIS_Y + 1 : THIS_Y;
 
-function allData(){return curM===6?D6:D7;}
-function filtered(){return allData().filter(d=>(fPrio==='all'||d.prio===fPrio)&&(fStatus==='all'||d.status===fStatus));}
+// 월별 데이터 맵 (6월 시작 ~ 이후 월 추가)
+const DATA_MAP = {6: D6, 7: D7};
 
-document.getElementById('updated-date').textContent='업데이트: '+new Date().toLocaleDateString('ko-KR');
+let curM = THIS_M, curY = THIS_Y;
+let fPrio='all', fStatus='all';
 
-document.querySelectorAll('.mtab').forEach(t=>{
+function allData(){ return DATA_MAP[curM] || []; }
+function filtered(){ return allData().filter(d=>(fPrio==='all'||d.prio===fPrio)&&(fStatus==='all'||d.status===fStatus)); }
+
+// 6월(시작)부터 다음달까지 탭 생성
+const tabWrap = document.getElementById('month-tabs');
+function makeMonthList(){
+  const list=[], END_Y=NEXT_Y, END_M=NEXT_M;
+  let y=2026, m=6;
+  while(true){
+    list.push({y,m});
+    if(y===END_Y&&m===END_M) break;
+    m++; if(m>12){m=1;y++;}
+    if(y>END_Y||(y===END_Y&&m>END_M)) break;
+  }
+  return list;
+}
+makeMonthList().forEach(({y,m})=>{
+  const t=document.createElement('span');
+  const isPast=(y<THIS_Y)||(y===THIS_Y&&m<THIS_M);
+  t.className='mtab'+(y===THIS_Y&&m===THIS_M?' active':'')+(isPast?' past':'');
+  t.dataset.m=m; t.dataset.y=y;
+  t.textContent=(m===1)?`${y}년 1월`:`${m}월`;
   t.addEventListener('click',()=>{
-    curM=+t.dataset.m;
+    curM=+t.dataset.m; curY=+t.dataset.y;
     document.querySelectorAll('.mtab').forEach(x=>x.classList.remove('active'));
     t.classList.add('active');
     render();
   });
+  tabWrap.appendChild(t);
 });
+
+document.getElementById('updated-date').textContent='업데이트: '+NOW.toLocaleDateString('ko-KR');
 document.querySelectorAll('.pill').forEach(p=>{
   p.addEventListener('click',()=>{
     const f=p.dataset.f,v=p.dataset.v;
@@ -200,27 +287,38 @@ function renderMetrics(){
   document.getElementById('m-free').textContent=all.filter(d=>d.cost==='무료').length;
 }
 function renderCal(){
-  const daysInMonth=curM===6?30:31;
-  const startDow=new Date(2026,curM-1,1).getDay();
-  document.getElementById('cal-hdr-label').textContent=`2026년 ${curM}월`;
+  const daysInMonth = new Date(curY, curM, 0).getDate();
+  document.getElementById('cal-hdr-label').textContent=`${curY}년 ${curM}월`;
+  document.getElementById('cal-grid').style.gridTemplateColumns='repeat(5,1fr)';
+
   const byDay={};
   allData().filter(d=>d.day).forEach(d=>{if(!byDay[d.day])byDay[d.day]=[];byDay[d.day].push(d);});
-  const today=new Date();
-  const isCurMonth=today.getFullYear()===2026&&today.getMonth()===curM-1;
+
+  const todayD=new Date();
+  const isCurMonth=todayD.getFullYear()===curY&&todayD.getMonth()===curM-1;
+
+  // 월~금(1~5)만 표시
   let html='';
-  ['일','월','화','수','목','금','토'].forEach(d=>{html+=`<div class="cal-dow">${d}</div>`;});
-  for(let i=0;i<startDow;i++)html+=`<div class="cal-cell empty"></div>`;
+  ['월','화','수','목','금'].forEach(d=>{html+=`<div class="cal-dow">${d}</div>`;});
+
+  // 1일의 요일 (0=일, 1=월 ... 6=토)
+  const firstDow = new Date(curY, curM-1, 1).getDay();
+  // 월요일 기준 오프셋 (월=0, 화=1 ... 금=4, 토·일은 건너뜀)
+  const offset = firstDow === 0 ? 4 : firstDow - 1; // 일요일이면 다음 월요일까지 4칸
+  for(let i=0;i<offset;i++) html+=`<div class="cal-cell empty"></div>`;
+
   for(let d=1;d<=daysInMonth;d++){
-    const isToday=isCurMonth&&d===today.getDate();
+    const dow=new Date(curY,curM-1,d).getDay();
+    if(dow===0||dow===6) continue; // 토·일 건너뜀
+    const isToday=isCurMonth&&d===todayD.getDate();
     html+=`<div class="cal-cell${isToday?' today':''}"><div class="cal-day-num">${d}</div>`;
     if(byDay[d])byDay[d].forEach(ev=>{
-      const t=ev.title.length>12?ev.title.slice(0,12)+'…':ev.title;
-      html+=`<div class="cal-event ${EP[ev.prio]}" title="${ev.title}">${t}</div>`;
+      const t=ev.title.length>10?ev.title.slice(0,10)+'…':ev.title;
+      const idx=allData().findIndex(x=>x.title===ev.title);
+      html+=`<div class="cal-event ${EP[ev.prio]}" title="${ev.title}" onclick="scrollToCard(${idx})">${t}</div>`;
     });
     html+=`</div>`;
   }
-  const rem=(startDow+daysInMonth)%7;
-  if(rem>0)for(let i=0;i<7-rem;i++)html+=`<div class="cal-cell empty"></div>`;
   document.getElementById('cal-grid').innerHTML=html;
 }
 function renderNote(){
@@ -237,9 +335,13 @@ function renderNote(){
 function renderCards(){
   const list=filtered();
   document.getElementById('list-count').textContent=list.length+'건';
+  if(!allData().length){
+    document.getElementById('card-list').innerHTML='<div class="empty">해당 월 데이터가 아직 입력되지 않았습니다.<br>매월 둘째·넷째 월요일 업데이트 예정입니다.</div>';
+    return;
+  }
   if(!list.length){document.getElementById('card-list').innerHTML='<div class="empty">해당 조건의 행사가 없습니다</div>';return;}
-  document.getElementById('card-list').innerHTML=list.map(d=>`
-    <div class="card">
+  document.getElementById('card-list').innerHTML=list.map((d,i)=>`
+    <div class="card" id="card-${allData().findIndex(x=>x.title===d.title)}">
       <div class="card-top">
         <div class="card-title">${d.title}</div>
         <div class="card-badges"><span class="badge ${BS[d.status]}">${d.status}</span><span class="badge ${BP[d.prio]}">${d.prio}</span></div>
@@ -256,6 +358,24 @@ function renderCards(){
       <div class="card-source">출처: <a href="${d.url}" target="_blank" rel="noopener">${d.src} ↗</a></div>
     </div>`).join('');
 }
+function scrollToCard(idx){
+  // 필터가 걸려있으면 전체로 리셋
+  fPrio='all'; fStatus='all';
+  document.querySelectorAll('.pill').forEach(p=>{
+    p.classList.toggle('active', p.dataset.v==='all');
+  });
+  renderCards();
+
+  // 카드로 스크롤
+  const el=document.getElementById('card-'+idx);
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+
+  // 하이라이트 효과
+  el.classList.add('highlight');
+  setTimeout(()=>el.classList.remove('highlight'), 2000);
+}
+
 function render(){renderMetrics();renderCal();renderNote();renderCards();}
 render();
 </script>
