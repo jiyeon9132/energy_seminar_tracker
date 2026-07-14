@@ -1,7 +1,10 @@
 name: 구글폼 행사 즉시 반영
 
 on:
-  workflow_dispatch:   # Apps Script가 폼 제출 시 즉시 호출
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   sync:
