@@ -3,327 +3,107 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>에너지·전력 세미나 대시보드</title>
+<title>에너지 세미나 대시보드</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
-
-  :root {
-    --bg:       #F7F8FA;
-    --surface:  #FFFFFF;
-    --border:   #E4E8EF;
-    --text-1:   #1A2332;
-    --text-2:   #4A5568;
-    --text-3:   #8A96A8;
-    --blue:     #2D6BE4;
-    --blue-lt:  #EBF1FD;
-    --green:    #1E8A4C;
-    --green-lt: #E6F5ED;
-    --amber:    #B45309;
-    --amber-lt: #FEF3DC;
-    --purple:   #6B46C1;
-    --purple-lt:#F0EBFF;
-    --red-lt:   #FEF0F0;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: 'Noto Sans KR', 'Inter', sans-serif;
-    background: var(--bg);
-    color: var(--text-1);
-    font-size: 13px;
-    line-height: 1.6;
-  }
-
-  /* ── Header ── */
-  .header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 0 32px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .header-left { display: flex; align-items: center; gap: 10px; }
-  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
-  .header-title { font-size: 14px; font-weight: 600; color: var(--text-1); }
-  .header-sub { font-size: 11px; color: var(--text-3); margin-left: 8px; }
-  .updated { font-size: 11px; color: var(--text-3); }
-
-  /* ── Layout ── */
-  .container { max-width: 1100px; margin: 0 auto; padding: 24px 24px; }
-
-  /* ── Metrics ── */
-  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
-  .metric {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px 18px;
-  }
-  .metric-label { font-size: 11px; color: var(--text-3); margin-bottom: 6px; font-weight: 500; letter-spacing: 0.3px; }
-  .metric-val { font-size: 26px; font-weight: 600; color: var(--text-1); font-family: 'Inter', sans-serif; }
-  .metric-val.blue  { color: var(--blue); }
-  .metric-val.green { color: var(--green); }
-
-  /* ── Filters ── */
-  .filter-bar {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-  .filter-sep { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
-  .filter-label { font-size: 11px; color: var(--text-3); font-weight: 500; }
-  .pill {
-    font-size: 11px;
-    padding: 4px 12px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    cursor: pointer;
-    background: var(--surface);
-    color: var(--text-2);
-    transition: all .15s;
-    font-weight: 400;
-  }
-  .pill:hover { border-color: var(--blue); color: var(--blue); }
-  .pill.active { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 500; }
-
-  /* ── Section title ── */
-  .section-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-2);
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    margin: 28px 0 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .section-title::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-  .section-count {
-    font-size: 10px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text-3);
-    padding: 1px 7px;
-    border-radius: 10px;
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: 0;
-  }
-
-  /* ── Calendar ── */
-  .cal-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    margin-bottom: 16px;
-  }
-  .cal-header {
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-1);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .cal-header-right { font-size: 11px; color: var(--text-3); font-weight: 400; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-  .cal-dow {
-    padding: 8px 4px;
-    text-align: center;
-    font-size: 10px;
-    font-weight: 600;
-    color: var(--text-3);
-    letter-spacing: 0.3px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg);
-  }
-  .cal-dow:first-child { color: #E53E3E; }
-  .cal-dow:last-child { color: var(--blue); }
-  .cal-cell {
-    min-height: 80px;
-    padding: 6px 5px;
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
-  }
-  .cal-cell:nth-child(7n) { border-right: none; }
-  .cal-cell.empty { background: var(--bg); opacity: 0.5; }
-  .cal-cell.today .cal-day-num {
-    background: var(--blue);
-    color: #fff;
-    border-radius: 50%;
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-  }
-  .cal-day-num {
-    font-size: 11px;
-    color: var(--text-2);
-    margin-bottom: 4px;
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 500;
-  }
-  .cal-event {
-    font-size: 9.5px;
-    padding: 2px 5px;
-    border-radius: 4px;
-    margin-bottom: 2px;
-    line-height: 1.4;
-    cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .ev-high { background: var(--green-lt); color: var(--green); }
-  .ev-med  { background: var(--amber-lt); color: var(--amber); }
-  .ev-low  { background: var(--bg); color: var(--text-3); border: 1px solid var(--border); }
-
-  /* ── Calendar note (undated) ── */
-  .cal-note {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    margin-bottom: 24px;
-  }
-  .cal-note-header {
-    padding: 12px 18px;
-    border-bottom: 1px solid var(--border);
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-2);
-    background: var(--bg);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .cal-note-body { padding: 4px 0; }
-  .cal-note-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 18px;
-    border-bottom: 1px solid var(--border);
-    font-size: 11px;
-  }
-  .cal-note-row:last-child { border-bottom: none; }
-  .cal-note-name { color: var(--text-1); flex: 1; font-weight: 500; }
-  .cal-note-date { color: var(--text-3); font-size: 10px; flex-shrink: 0; }
-
-  /* ── Badges ── */
-  .badge {
-    font-size: 10px;
-    padding: 2px 7px;
-    border-radius: 10px;
-    font-weight: 500;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .b-conf   { background: var(--blue-lt);   color: var(--blue); }
-  .b-plan   { background: var(--amber-lt);  color: var(--amber); }
-  .b-est    { background: var(--purple-lt); color: var(--purple); }
-  .b-high   { background: var(--green-lt);  color: var(--green); }
-  .b-med    { background: var(--amber-lt);  color: var(--amber); }
-  .b-low    { background: var(--bg);        color: var(--text-3); border: 1px solid var(--border); }
-
-  /* ── Cards ── */
-  .card-list { display: flex; flex-direction: column; gap: 8px; }
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .card:hover { border-color: #C0CCE0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
-  .card-title { font-size: 13px; font-weight: 600; color: var(--text-1); line-height: 1.4; }
-  .card-badges { display: flex; gap: 4px; flex-shrink: 0; }
-  .card-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; margin-bottom: 8px; }
-  .meta-row { display: flex; gap: 6px; font-size: 11px; }
-  .meta-key { color: var(--text-3); font-weight: 500; flex-shrink: 0; width: 24px; }
-  .meta-val { color: var(--text-2); }
-  .card-divider { height: 1px; background: var(--border); margin: 8px 0; }
-  .card-content { font-size: 11px; color: var(--text-2); line-height: 1.7; }
-  .card-speakers { font-size: 11px; color: var(--text-2); margin-top: 4px; }
-  .card-speakers b { color: var(--text-1); }
-  .card-source { font-size: 10px; color: var(--blue); margin-top: 6px; }
-
-  /* ── Empty ── */
-  .empty { text-align: center; padding: 40px; color: var(--text-3); font-size: 13px; }
-
-  /* ── Footer ── */
-  .footer {
-    text-align: center;
-    padding: 32px 0 24px;
-    font-size: 11px;
-    color: var(--text-3);
-    border-top: 1px solid var(--border);
-    margin-top: 40px;
-  }
-  .monitor-links { display: flex; gap: 16px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
-  .monitor-links a { color: var(--blue); text-decoration: none; font-size: 11px; }
-  .monitor-links a:hover { text-decoration: underline; }
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&display=swap');
+  :root{--bg:#F7F8FA;--surface:#FFFFFF;--border:#E4E8EF;--text-1:#1A2332;--text-2:#4A5568;--text-3:#8A96A8;--blue:#2D6BE4;--blue-lt:#EBF1FD;--green:#1E8A4C;--green-lt:#E6F5ED;--amber:#B45309;--amber-lt:#FEF3DC;--purple:#6B46C1;--purple-lt:#F0EBFF}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text-1);font-size:13px;line-height:1.6}
+  .header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .header-left{display:flex;align-items:center;gap:10px}
+  .logo-dot{width:8px;height:8px;border-radius:50%;background:var(--blue)}
+  .header-title{font-size:14px;font-weight:600;color:var(--text-1)}
+  .header-sub{font-size:11px;color:var(--text-3);margin-left:8px}
+  .updated{font-size:11px;color:var(--text-3)}
+  .container{max-width:1100px;margin:0 auto;padding:24px}
+  .month-tabs{display:flex;gap:6px;margin-bottom:20px}
+  .mtab{font-size:12px;padding:5px 16px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:var(--surface);color:var(--text-2);transition:all .15s}
+  .mtab.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:500}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .metric{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+  .metric-label{font-size:11px;color:var(--text-3);margin-bottom:6px;font-weight:500;letter-spacing:.3px}
+  .metric-val{font-size:26px;font-weight:600;color:var(--text-1)}
+  .metric-val.blue{color:var(--blue)}
+  .metric-val.green{color:var(--green)}
+  .filter-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+  .filter-sep{width:1px;height:16px;background:var(--border);margin:0 4px}
+  .filter-label{font-size:11px;color:var(--text-3);font-weight:500}
+  .pill{font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid var(--border);cursor:pointer;background:var(--surface);color:var(--text-2);transition:all .15s}
+  .pill.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:500}
+  .section-title{font-size:12px;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.6px;margin:28px 0 12px;display:flex;align-items:center;gap:8px}
+  .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+  .section-count{font-size:10px;background:var(--bg);border:1px solid var(--border);color:var(--text-3);padding:1px 7px;border-radius:10px;font-weight:500;text-transform:none;letter-spacing:0}
+  .cal-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px}
+  .cal-header{padding:14px 18px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--text-1);display:flex;justify-content:space-between;align-items:center}
+  .cal-header-r{font-size:11px;color:var(--text-3);font-weight:400}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+  .cal-dow{padding:8px 4px;text-align:center;font-size:10px;font-weight:600;color:var(--text-3);letter-spacing:.3px;border-bottom:1px solid var(--border);background:var(--bg)}
+  .cal-cell{min-height:80px;padding:6px 5px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+  .cal-cell:nth-child(7n){border-right:none}
+  .cal-cell.empty{background:var(--bg);opacity:.5}
+  .cal-cell.today .cal-day-num{background:var(--blue);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:600}
+  .cal-day-num{font-size:11px;color:var(--text-2);margin-bottom:4px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:500}
+  .cal-event{font-size:9.5px;padding:2px 5px;border-radius:4px;margin-bottom:2px;line-height:1.4;cursor:default;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ev-high{background:var(--green-lt);color:var(--green)}
+  .ev-med{background:var(--amber-lt);color:var(--amber)}
+  .ev-low{background:var(--bg);color:var(--text-3);border:1px solid var(--border)}
+  .cal-note{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
+  .cal-note-header{padding:12px 18px;border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text-2);background:var(--bg)}
+  .cal-note-row{display:flex;align-items:center;gap:8px;padding:8px 18px;border-bottom:1px solid var(--border);font-size:11px}
+  .cal-note-row:last-child{border-bottom:none}
+  .cal-note-name{color:var(--text-1);flex:1;font-weight:500}
+  .cal-note-date{color:var(--text-3);font-size:10px;flex-shrink:0}
+  .badge{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;white-space:nowrap;flex-shrink:0}
+  .b-conf{background:var(--blue-lt);color:var(--blue)}
+  .b-plan{background:var(--amber-lt);color:var(--amber)}
+  .b-est{background:var(--purple-lt);color:var(--purple)}
+  .b-high{background:var(--green-lt);color:var(--green)}
+  .b-med{background:var(--amber-lt);color:var(--amber)}
+  .b-low{background:var(--bg);color:var(--text-3);border:1px solid var(--border)}
+  .card-list{display:flex;flex-direction:column;gap:8px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;transition:border-color .15s,box-shadow .15s}
+  .card:hover{border-color:#C0CCE0;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+  .card-title{font-size:13px;font-weight:600;color:var(--text-1);line-height:1.4}
+  .card-badges{display:flex;gap:4px;flex-shrink:0}
+  .card-meta{display:grid;grid-template-columns:1fr 1fr;gap:3px 16px;margin-bottom:8px}
+  .meta-row{display:flex;gap:6px;font-size:11px}
+  .meta-key{color:var(--text-3);font-weight:500;flex-shrink:0;width:24px}
+  .meta-val{color:var(--text-2)}
+  .card-divider{height:1px;background:var(--border);margin:8px 0}
+  .card-content{font-size:11px;color:var(--text-2);line-height:1.7}
+  .card-speakers{font-size:11px;color:var(--text-2);margin-top:4px}
+  .card-speakers b{color:var(--text-1)}
+  .card-source{font-size:10px;margin-top:6px}
+  .card-source a{color:var(--blue);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .15s}
+  .card-source a:hover{border-bottom-color:var(--blue)}
+  .empty{text-align:center;padding:40px;color:var(--text-3);font-size:13px}
+  .footer{text-align:center;padding:32px 0 24px;font-size:11px;color:var(--text-3);border-top:1px solid var(--border);margin-top:40px}
+  .monitor-links{display:flex;gap:16px;justify-content:center;margin-top:8px;flex-wrap:wrap}
+  .monitor-links a{color:var(--blue);text-decoration:none}
 </style>
 </head>
 <body>
-
 <header class="header">
   <div class="header-left">
     <div class="logo-dot"></div>
-    <span class="header-title">에너지·전력 세미나 대시보드</span>
-    <span class="header-sub">재생에너지 · ESS · 전기차충전 · 전력 | 대관업무팀</span>
+    <span class="header-title">에너지 세미나 대시보드</span>
+    <span class="header-sub">재생에너지 · ESS · 전기차충전 · 전력 · 수소 · CCS · 배터리 | 대관업무팀</span>
   </div>
   <span class="updated" id="updated-date"></span>
 </header>
 
 <div class="container">
-
-  <!-- Metrics -->
-  <div class="metrics">
-    <div class="metric">
-      <div class="metric-label">전체 행사</div>
-      <div class="metric-val" id="m-total">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">일정 확정</div>
-      <div class="metric-val blue" id="m-conf">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">최우선 참석</div>
-      <div class="metric-val green" id="m-high">—</div>
-    </div>
-    <div class="metric">
-      <div class="metric-label">무료 행사</div>
-      <div class="metric-val" id="m-free">—</div>
-    </div>
+  <div class="month-tabs">
+    <span class="mtab" data-m="6">6월</span>
+    <span class="mtab active" data-m="7">7월</span>
   </div>
-
-  <!-- Filters -->
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">전체 행사</div><div class="metric-val" id="m-total">—</div></div>
+    <div class="metric"><div class="metric-label">일정 확정</div><div class="metric-val blue" id="m-conf">—</div></div>
+    <div class="metric"><div class="metric-label">최우선 참석</div><div class="metric-val green" id="m-high">—</div></div>
+    <div class="metric"><div class="metric-label">무료 행사</div><div class="metric-val" id="m-free">—</div></div>
+  </div>
   <div class="filter-bar">
     <span class="filter-label">우선순위</span>
     <span class="pill active" data-f="prio" data-v="all">전체</span>
@@ -337,30 +117,17 @@
     <span class="pill" data-f="status" data-v="일정조율중">일정조율중</span>
     <span class="pill" data-f="status" data-v="개최추정">개최추정</span>
   </div>
-
-  <!-- Calendar -->
-  <div class="section-title">6월 캘린더</div>
+  <div class="section-title">캘린더</div>
   <div class="cal-wrap">
-    <div class="cal-header">
-      <span>2026년 6월</span>
-      <span class="cal-header-right">날짜 미확정 행사는 하단 목록 참고</span>
-    </div>
+    <div class="cal-header"><span id="cal-hdr-label"></span><span class="cal-header-r">날짜 미확정 행사는 하단 목록 참고</span></div>
     <div class="cal-grid" id="cal-grid"></div>
   </div>
-
-  <!-- Undated note -->
   <div class="cal-note">
-    <div class="cal-note-header">날짜 미확정 행사 — 일정 확인 후 캘린더 반영 필요</div>
-    <div class="cal-note-body" id="cal-note-body"></div>
+    <div class="cal-note-header" id="note-header"></div>
+    <div id="note-body"></div>
   </div>
-
-  <!-- List -->
-  <div class="section-title">
-    행사 목록
-    <span class="section-count" id="list-count"></span>
-  </div>
+  <div class="section-title">행사 목록 <span class="section-count" id="list-count"></span></div>
   <div class="card-list" id="card-list"></div>
-
   <footer class="footer">
     <div>개최추정 행사는 반드시 직접 확인 후 참석 결정하세요.</div>
     <div class="monitor-links">
@@ -374,133 +141,108 @@
 </div>
 
 <script>
-const SEMINARS = [
-  { title:"전력망 확충 국회토론회 (HVDC·에너지고속도로)", status:"일정확정", prio:"최우선", day:10,
-    date:"2026.06.10 (화) 13:30", org:"이언주 의원실 (더불어민주당)", venue:"국회의원회관 제1세미나실", cost:"무료",
-    content:"서해안 HVDC 에너지고속도로 실현 방안 / 재생에너지 연계 전력망 확충 / 수도권 전력 수급 불균형 해소",
-    speakers:"이언주 의원 (더불어민주당) / 문양택 전력산업정책관 (기후에너지환경부) / 서성태 전력망정책과장 (기후에너지환경부) / 이성학 계통정책기획실장 (한국전력공사)",
-    src:"ampos.nanet.go.kr (2026.06 공지)" },
-  { title:"태양광 RPS 고정가격계약 입찰 설명회 (마지막 RPS 입찰)", status:"일정조율중", prio:"최우선", day:null,
-    date:"2026.06 초~중순 (공고 예정)", org:"한국에너지공단 신재생에너지센터", venue:"온라인 또는 에너지공단 강당", cost:"무료",
-    content:"RPS 폐지 전 마지막 고정가격계약 입찰 공고 / 입찰 방식·기준 설명 / 2027년 재생에너지 계약시장 전환 로드맵",
-    speakers:"최재관 이사장 (한국에너지공단) / 강부영 청정전력전환과장 (기후에너지환경부)",
-    src:"blog.haezoom.com (2026.05.27 보도)" },
-  { title:"제1차 재생에너지 기본계획 후속 공청회", status:"일정조율중", prio:"최우선", day:null,
-    date:"2026.06 중순 (일정 TBD)", org:"기후에너지환경부 재생에너지정책관실", venue:"대한상공회의소 또는 정부세종청사", cost:"무료",
-    content:"재생에너지 100GW 기본계획 세부 이행 / RPS 폐지 및 계약시장 도입 일정 / 사업자 의견 수렴",
-    speakers:"윤정원 재생에너지정책과장 (기후에너지환경부) / 박영진 분산에너지과장 (기후에너지환경부) / 최재관 이사장 (한국에너지공단)",
-    src:"mcee.go.kr (2026.05 에너지위원회 발표)" },
-  { title:"배전망 연계형 ESS 구축지원사업 설명회 (1,171억 규모)", status:"일정조율중", prio:"최우선", day:null,
-    date:"2026.06 중순 (최종선정 前)", org:"한국에너지공단", venue:"에너지공단 또는 온라인", cost:"무료",
-    content:"1,171억원 배전망 연계 ESS 사업 / VPP 기반 ESS 운영 모델 / 사업자 선정 기준 및 평가 방식",
-    speakers:"최재관 이사장 (한국에너지공단) / 박영진 분산에너지과장 (기후에너지환경부)",
-    src:"electimes.com (2026.03.20 보도)" },
-  { title:"분산형 전력망 정례 정책 포럼", status:"일정조율중", prio:"최우선", day:null,
-    date:"2026.06 (격월 정례)", org:"기후에너지환경부 / 한국에너지공단", venue:"서울 (장소 추후 공지)", cost:"무료",
-    content:"배전망 ESS 유연성 자원 확대 / 재생에너지 출력제어 완화 방안 / 분산에너지특구 추진 현황",
-    speakers:"서성태 전력망정책과장 (기후에너지환경부) / 김성진 이사장 (한국전력거래소) / 최재관 이사장 (한국에너지공단)",
-    src:"electimes.com / mcee.go.kr (2026.03 기사)" },
-  { title:"ESS 입찰시장·VPP 수익모델 전략 세미나 [미래기술교육연구원]", status:"일정조율중", prio:"우선", day:null,
-    date:"2026.06 중순 (일정 미정)", org:"한국미래기술교육연구원", venue:"서울 여의도 FKI타워 사파이어홀", cost:"유료 (40~70만원 추정)",
-    content:"ESS 신규 입찰시장 참여 전략 / VPP·PPA 연계 수익모델 / 배전 연계형 ESS 운영 전략",
-    speakers:"전력거래소 시장운영처 담당자 / 기후에너지환경부 ESS 담당 과장 (연사 미확정)",
-    src:"ekn.kr (과거 개최 패턴)" },
-  { title:"전력시장·에너지 대응 전략 세미나 [세미나허브]", status:"일정조율중", prio:"우선", day:null,
-    date:"2026.06 둘째~셋째주 (미정)", org:"세미나허브", venue:"서울 여의도 FKI타워 컨퍼런스센터", cost:"유료 (40~60만원 추정)",
-    content:"전력시장 제도 변화 총정리 / ESS 중앙계약시장 현황 / VPP·DR·V2G 사업화 전략",
-    speakers:"전력거래소 시장운영처 관계자 / 에너지 연구기관 교수·연구원 (연사 미확정)",
-    src:"seminarhub.co.kr (과거 개최 패턴)" },
-  { title:"RE100·직접PPA 실무 전략 세미나", status:"개최추정", prio:"우선", day:null,
-    date:"2026.06 하순 (추정)", org:"세미나허브 또는 한국미래기술교육연구원", venue:"서울 여의도 FKI타워", cost:"유료 (40~70만원 추정)",
-    content:"PPA 시장 구매자 우위 전환 전략 / 재생에너지 조달 2026~2030 로드맵 / V2G·ESS 통합 PPA 모델",
-    speakers:"기후에너지환경부 재생에너지 담당 과장 / 에너지 경제·법 분야 교수 (연사 미확정)",
-    src:"electimes.com (2026.04.28 RE100컨퍼런스 1차 기반 추정)" },
-  { title:"전기차·충전인프라 구축 실무 세미나 [산업교육연구소]", status:"개최추정", prio:"우선", day:null,
-    date:"2026.06 (분기별 추정)", org:"산업교육연구소", venue:"서울 여의도 전경련회관", cost:"유료 (35~55만원 추정)",
-    content:"전기차 충전시설 법령·인허가 실무 / V2G·스마트충전 기술 동향 / 공공기관 충전 의무화 정책",
-    speakers:"박판규 탈탄소녹색수송혁신과장 (기후에너지환경부) / 전력거래소 V2G 담당자 (미확정)",
-    src:"kiet.co.kr (과거 개최 이력)" },
-  { title:"전력거래소 전력시장 운영 제도 설명회", status:"개최추정", prio:"참고용", day:null,
-    date:"2026.06 (분기별 추정)", org:"전력거래소 (KPX)", venue:"전력거래소 나주 또는 서울 사무소", cost:"무료",
-    content:"전력시장 제도 변경사항 설명 / ESS 중앙계약시장 운영 현황 / VPP·DR 시장 참여 절차",
-    speakers:"김성진 이사장 (한국전력거래소) / 시장운영처장 / 계통운영처 담당자",
-    src:"kpx.or.kr (분기별 설명회 패턴)" },
-  { title:"한전 재생에너지 계통 접속 현황 설명회 (사업자 대상)", status:"개최추정", prio:"최우선", day:null,
-    date:"2026.06 (반기별 추정)", org:"한국전력공사 (KEPCO)", venue:"한전 본사(나주) 또는 서울 사무소", cost:"무료",
-    content:"재생에너지 계통 접속 현황 및 대기 해소 방안 / 배전망 ESS 연계 계획 / 서해안 HVDC 추진 현황",
-    speakers:"김동철 사장 (한국전력공사) / 이성학 계통정책기획실장 (한국전력공사)",
-    src:"kepco.co.kr / skenews.kr (2026.03.21 기사)" },
+const D6=[
+  {title:"전력망 확충 국회토론회 (HVDC·에너지고속도로)",status:"일정확정",prio:"최우선",day:10,date:"2026.06.10 (화) 13:30",org:"이언주 의원실 (더불어민주당)",venue:"국회의원회관 제1세미나실",cost:"무료",content:"서해안 HVDC 에너지고속도로 실현 방안 / 재생에너지 연계 전력망 확충 / 수도권 전력 수급 불균형 해소",speakers:"이언주 의원 (더불어민주당) / 문양택 전력산업정책관 (기후에너지환경부) / 서성태 전력망정책과장 (기후에너지환경부) / 이성학 계통정책기획실장 (한국전력공사)",src:"ampos.nanet.go.kr",url:"https://ampos.nanet.go.kr"},
+  {title:"태양광 RPS 고정가격계약 입찰 설명회",status:"일정조율중",prio:"최우선",day:null,date:"2026.06 초~중순",org:"한국에너지공단 신재생에너지센터",venue:"온라인 또는 에너지공단 강당",cost:"무료",content:"마지막 RPS 고정가격계약 입찰 공고 / 입찰 방식·기준 설명 / 2027년 재생에너지 계약시장 전환 로드맵",speakers:"최재관 이사장 (한국에너지공단) / 강부영 청정전력전환과장 (기후에너지환경부)",src:"blog.haezoom.com (2026.05.27)",url:"https://blog.haezoom.com/notice_46/"},
+  {title:"제1차 재생에너지 기본계획 후속 공청회",status:"일정조율중",prio:"최우선",day:null,date:"2026.06 중순",org:"기후에너지환경부 재생에너지정책관실",venue:"대한상공회의소 또는 정부세종청사",cost:"무료",content:"재생에너지 100GW 기본계획 세부 이행 / RPS 폐지 및 계약시장 도입 일정 / 사업자 의견 수렴",speakers:"윤정원 재생에너지정책과장 (기후에너지환경부) / 박영진 분산에너지과장 (기후에너지환경부) / 최재관 이사장 (한국에너지공단)",src:"mcee.go.kr",url:"https://www.mcee.go.kr"},
+  {title:"배전망 연계형 ESS 구축지원사업 설명회 (1,171억)",status:"일정조율중",prio:"최우선",day:null,date:"2026.06 중순",org:"한국에너지공단",venue:"에너지공단 또는 온라인",cost:"무료",content:"1,171억원 배전망 연계 ESS 사업 / VPP 기반 ESS 운영 모델 / 사업자 선정 기준 및 평가 방식",speakers:"최재관 이사장 (한국에너지공단) / 박영진 분산에너지과장 (기후에너지환경부)",src:"electimes.com (2026.03.20)",url:"https://www.electimes.com"},
+  {title:"분산형 전력망 정례 정책 포럼",status:"일정조율중",prio:"최우선",day:null,date:"2026.06 (격월 정례)",org:"기후에너지환경부 / 한국에너지공단",venue:"서울 (장소 추후 공지)",cost:"무료",content:"배전망 ESS 유연성 자원 확대 / 재생에너지 출력제어 완화 방안 / 분산에너지특구 추진 현황",speakers:"서성태 전력망정책과장 (기후에너지환경부) / 김성진 이사장 (한국전력거래소) / 최재관 이사장 (한국에너지공단)",src:"mcee.go.kr",url:"https://www.mcee.go.kr"},
+  {title:"ESS 입찰시장·VPP 수익모델 전략 세미나 [미래기술교육연구원]",status:"일정조율중",prio:"우선",day:null,date:"2026.06 중순",org:"한국미래기술교육연구원",venue:"서울 여의도 FKI타워 사파이어홀",cost:"유료 (40~70만원 추정)",content:"ESS 신규 입찰시장 참여 전략 / VPP·PPA 연계 수익모델 / 배전 연계형 ESS 운영 전략",speakers:"전력거래소 시장운영처 담당자 (연사 미확정)",src:"ekn.kr",url:"https://www.ekn.kr"},
+  {title:"전력시장·에너지 대응 전략 세미나 [세미나허브]",status:"일정조율중",prio:"우선",day:null,date:"2026.06 둘째~셋째주",org:"세미나허브",venue:"서울 여의도 FKI타워 컨퍼런스센터",cost:"유료 (40~60만원 추정)",content:"전력시장 제도 변화 총정리 / ESS 중앙계약시장 현황 / VPP·DR·V2G 사업화 전략",speakers:"전력거래소 시장운영처 관계자 (연사 미확정)",src:"seminarhub.co.kr",url:"https://seminarhub.co.kr"},
+  {title:"RE100·직접PPA 실무 전략 세미나",status:"개최추정",prio:"우선",day:null,date:"2026.06 하순",org:"세미나허브 또는 한국미래기술교육연구원",venue:"서울 여의도 FKI타워",cost:"유료 (40~70만원 추정)",content:"PPA 시장 구매자 우위 전환 전략 / 재생에너지 조달 2026~2030 로드맵 / V2G·ESS 통합 PPA 모델",speakers:"기후에너지환경부 재생에너지 담당 과장 (연사 미확정)",src:"electimes.com (2026.04.28)",url:"https://www.electimes.com"},
+  {title:"전기차·충전인프라 구축 실무 세미나 [산업교육연구소]",status:"개최추정",prio:"우선",day:null,date:"2026.06 (분기별 추정)",org:"산업교육연구소",venue:"서울 여의도 전경련회관",cost:"유료 (35~55만원 추정)",content:"전기차 충전시설 법령·인허가 실무 / V2G·스마트충전 기술 동향 / 공공기관 충전 의무화 정책",speakers:"박판규 탈탄소녹색수송혁신과장 (기후에너지환경부) (연사 미확정)",src:"kiet.co.kr",url:"https://www.kiet.co.kr"},
+  {title:"전력거래소 전력시장 운영 제도 설명회",status:"개최추정",prio:"참고용",day:null,date:"2026.06 (분기별 추정)",org:"전력거래소 (KPX)",venue:"전력거래소 나주 또는 서울 사무소",cost:"무료",content:"전력시장 제도 변경사항 설명 / ESS 중앙계약시장 운영 현황 / VPP·DR 시장 참여 절차",speakers:"김성진 이사장 (한국전력거래소) / 시장운영처장 / 계통운영처 담당자",src:"kpx.or.kr",url:"https://www.kpx.or.kr"},
+  {title:"한전 재생에너지 계통 접속 현황 설명회",status:"개최추정",prio:"최우선",day:null,date:"2026.06 (반기별 추정)",org:"한국전력공사 (KEPCO)",venue:"한전 본사(나주) 또는 서울 사무소",cost:"무료",content:"재생에너지 계통 접속 현황 및 대기 해소 방안 / 배전망 ESS 연계 계획 / 서해안 HVDC 추진 현황",speakers:"김동철 사장 (한국전력공사) / 이성학 계통정책기획실장 (한국전력공사)",src:"kepco.co.kr",url:"https://kepco.co.kr"},
+];
+const D7=[
+  {title:"한국에너지학회 여름 심포지엄",status:"일정확정",prio:"우선",day:2,date:"2026.07.02~03 (목~금)",org:"한국에너지학회",venue:"쏠비치 양양 (강원도)",cost:"유료 (회원 할인)",content:"재생에너지·ESS·전력계통 최신 연구 발표 / 에너지 정책·기술 학술 교류 / 네트워킹 세션",speakers:"한국에너지학회 소속 교수·연구원 / 에너지 분야 정부·산업계 관계자",src:"kosee.or.kr",url:"https://kosee.or.kr"},
+  {title:"2026 뉴에너지 페어 오송 (NEO 2026)",status:"일정확정",prio:"우선",day:8,date:"2026.07.08~10 (수~금)",org:"충청북도 / 청주오스코 / 충북에너지산학융합원",venue:"청주오스코 (OSCO), 충북 청주",cost:"무료 (사전등록)",content:"태양광·ESS·수소·분산에너지 기술 및 정책 전시 / 충북 에너지 정책관 운영 / 세미나·컨퍼런스 별도 신청",speakers:"충북도 에너지 담당 관계자 / 에너지 기업·기관 대표",src:"neofair.co.kr",url:"https://neofair.co.kr"},
+  {title:"대한전기학회 제57회 하계학술대회",status:"일정확정",prio:"우선",day:8,date:"2026.07.08~11 (수~토)",org:"대한전기학회",venue:"용평리조트 (강원도 평창)",cost:"유료 (회원 등록)",content:"AI·탄소중립 관련 전력 기술 학술 발표 / 재생에너지 계통 연계 기술 / 스마트그리드·ESS 최신 연구 / 기후에너지환경부·산업부 우수논문 장관상 시상",speakers:"박종배 대한전기학회 회장 / Daniel L. Brooks SVP EDCS (초청강연) / 한전·전력거래소·연구기관 전문가",src:"conf.kiee.or.kr",url:"https://conf.kiee.or.kr"},
+  {title:"에너지 안보 리스크와 배터리 공급망 강화 전략 국회토론회",status:"일정확정",prio:"최우선",day:10,date:"2026.07.10 (목) 14:00",org:"이언주·권향엽·송재봉·정진욱·허성무 의원실",venue:"국회의원회관 제2간담회실",cost:"무료",content:"글로벌 핵심 광물 패권 경쟁 및 에너지 안보 진단 / 배터리 공급망 강화 전략 / ESS·재생에너지 연계 배터리 수요 확대 방안",speakers:"이언주 의원 (더불어민주당) / 권향엽 의원 / 송재봉 의원 / NEIS 센터 관계자 / 산업통상자원부 담당자",src:"daenews.co.kr (2026.07.07)",url:"https://www.daenews.co.kr/25856"},
+  {title:"제2회 글로벌 배터리 파운드리 포럼",status:"일정확정",prio:"최우선",day:15,date:"2026.07.15 (수) 10:00~17:00",org:"디일렉 / 와이일렉",venue:"포스코타워역삼 3층 이벤트홀 (역삼역 3번출구)",cost:"무료 (사전등록 마감 7.14)",content:"ESS·BESS 차세대 배터리 기술 동향 / 글로벌 배터리 공급망 전략 / 전기차·AI 데이터센터 배터리 수요 전망",speakers:"배터리 업계 전문가 / JR에너지솔루션 후원사 관계자 / 디일렉 이수환 전문기자",src:"thelec.kr (2026.06.30)",url:"https://www.thelec.kr/news/articleView.html?idxno=58722"},
+  {title:"전기차·충전인프라 구축 실무 세미나 [산업교육연구소]",status:"개최추정",prio:"우선",day:null,date:"2026.07 (분기별 추정)",org:"산업교육연구소",venue:"서울 여의도 전경련회관",cost:"유료 (35~55만원 추정)",content:"전기차 충전시설 법령·인허가 실무 / V2G·스마트충전 기술 동향 / 공공기관 충전 의무화 정책",speakers:"기후에너지환경부 탈탄소수송 담당 (연사 미확정)",src:"kiet.co.kr",url:"https://www.kiet.co.kr"},
+  {title:"재생에너지 입찰·계통 관련 정책설명회",status:"개최추정",prio:"최우선",day:null,date:"2026.07 (일정 미정)",org:"기후에너지환경부 / 한국에너지공단",venue:"서울 또는 세종 (추후 공지)",cost:"무료",content:"6월 공청회 후속 사업자 정책 설명 / 계약시장 전환 세부 일정 안내 / 재생에너지 접속 확대 방안",speakers:"윤정원 재생에너지정책과장 (기후에너지환경부) / 한국에너지공단 담당자",src:"mcee.go.kr",url:"https://www.mcee.go.kr"},
 ];
 
-const B_STATUS = { 일정확정:'b-conf', 일정조율중:'b-plan', 개최추정:'b-est' };
-const B_PRIO   = { 최우선:'b-high', 우선:'b-med', 참고용:'b-low' };
-const EV_PRIO  = { 최우선:'ev-high', 우선:'ev-med', 참고용:'ev-low' };
+const BS={일정확정:'b-conf',일정조율중:'b-plan',개최추정:'b-est'};
+const BP={최우선:'b-high',우선:'b-med',참고용:'b-low'};
+const EP={최우선:'ev-high',우선:'ev-med',참고용:'ev-low'};
+let curM=7,fPrio='all',fStatus='all';
 
-let fPrio = 'all', fStatus = 'all';
-function filtered(){ return SEMINARS.filter(d => (fPrio==='all'||d.prio===fPrio) && (fStatus==='all'||d.status===fStatus)); }
+function allData(){return curM===6?D6:D7;}
+function filtered(){return allData().filter(d=>(fPrio==='all'||d.prio===fPrio)&&(fStatus==='all'||d.status===fStatus));}
 
-function renderHeader(){
-  document.getElementById('updated-date').textContent = '업데이트: ' + new Date().toLocaleDateString('ko-KR');
-}
+document.getElementById('updated-date').textContent='업데이트: '+new Date().toLocaleDateString('ko-KR');
+
+document.querySelectorAll('.mtab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    curM=+t.dataset.m;
+    document.querySelectorAll('.mtab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    render();
+  });
+});
+document.querySelectorAll('.pill').forEach(p=>{
+  p.addEventListener('click',()=>{
+    const f=p.dataset.f,v=p.dataset.v;
+    document.querySelectorAll(`.pill[data-f="${f}"]`).forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+    if(f==='prio') fPrio=v; else fStatus=v;
+    renderCards();
+  });
+});
 
 function renderMetrics(){
-  document.getElementById('m-total').textContent = SEMINARS.length;
-  document.getElementById('m-conf').textContent  = SEMINARS.filter(d=>d.status==='일정확정').length;
-  document.getElementById('m-high').textContent  = SEMINARS.filter(d=>d.prio==='최우선').length;
-  document.getElementById('m-free').textContent  = SEMINARS.filter(d=>d.cost==='무료').length;
+  const all=allData();
+  document.getElementById('m-total').textContent=all.length;
+  document.getElementById('m-conf').textContent=all.filter(d=>d.status==='일정확정').length;
+  document.getElementById('m-high').textContent=all.filter(d=>d.prio==='최우선').length;
+  document.getElementById('m-free').textContent=all.filter(d=>d.cost==='무료').length;
 }
-
 function renderCal(){
-  const DOW = ['일','월','화','수','목','금','토'];
-  let html = DOW.map(d=>`<div class="cal-dow">${d}</div>`).join('');
-
-  const byDay = {};
-  SEMINARS.filter(d=>d.day).forEach(d=>{ if(!byDay[d.day]) byDay[d.day]=[]; byDay[d.day].push(d); });
-
-  const startDow = new Date(2026,5,1).getDay(); // 월요일=1
-  for(let i=0;i<startDow;i++) html+=`<div class="cal-cell empty"></div>`;
-
-  const today = new Date();
-  for(let d=1;d<=30;d++){
-    const isToday = today.getFullYear()===2026 && today.getMonth()===5 && today.getDate()===d;
-    html += `<div class="cal-cell${isToday?' today':''}"><div class="cal-day-num">${d}</div>`;
-    if(byDay[d]) byDay[d].forEach(ev=>{
-      html += `<div class="cal-event ${EV_PRIO[ev.prio]}" title="${ev.title}">${ev.title.slice(0,12)}…</div>`;
+  const daysInMonth=curM===6?30:31;
+  const startDow=new Date(2026,curM-1,1).getDay();
+  document.getElementById('cal-hdr-label').textContent=`2026년 ${curM}월`;
+  const byDay={};
+  allData().filter(d=>d.day).forEach(d=>{if(!byDay[d.day])byDay[d.day]=[];byDay[d.day].push(d);});
+  const today=new Date();
+  const isCurMonth=today.getFullYear()===2026&&today.getMonth()===curM-1;
+  let html='';
+  ['일','월','화','수','목','금','토'].forEach(d=>{html+=`<div class="cal-dow">${d}</div>`;});
+  for(let i=0;i<startDow;i++)html+=`<div class="cal-cell empty"></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const isToday=isCurMonth&&d===today.getDate();
+    html+=`<div class="cal-cell${isToday?' today':''}"><div class="cal-day-num">${d}</div>`;
+    if(byDay[d])byDay[d].forEach(ev=>{
+      const t=ev.title.length>12?ev.title.slice(0,12)+'…':ev.title;
+      html+=`<div class="cal-event ${EP[ev.prio]}" title="${ev.title}">${t}</div>`;
     });
-    html += `</div>`;
+    html+=`</div>`;
   }
-  const used = startDow + 30;
-  const remain = used % 7;
-  if(remain>0) for(let i=0;i<7-remain;i++) html+=`<div class="cal-cell empty"></div>`;
-
-  document.getElementById('cal-grid').innerHTML = html;
+  const rem=(startDow+daysInMonth)%7;
+  if(rem>0)for(let i=0;i<7-rem;i++)html+=`<div class="cal-cell empty"></div>`;
+  document.getElementById('cal-grid').innerHTML=html;
 }
-
-function renderCalNote(){
-  const undated = SEMINARS.filter(d=>!d.day);
-  document.querySelector('.cal-note-header').textContent =
-    `날짜 미확정 행사 ${undated.length}건 — 일정 확인 후 캘린더 반영 필요`;
-  document.getElementById('cal-note-body').innerHTML = undated.map(d=>`
+function renderNote(){
+  const undated=allData().filter(d=>!d.day);
+  document.getElementById('note-header').textContent=`날짜 미확정 행사 ${undated.length}건 — 일정 확인 후 캘린더 반영 필요`;
+  document.getElementById('note-body').innerHTML=undated.map(d=>`
     <div class="cal-note-row">
-      <span class="badge ${B_STATUS[d.status]}">${d.status}</span>
-      <span class="badge ${B_PRIO[d.prio]}">${d.prio}</span>
+      <span class="badge ${BS[d.status]}">${d.status}</span>
+      <span class="badge ${BP[d.prio]}">${d.prio}</span>
       <span class="cal-note-name">${d.title}</span>
       <span class="cal-note-date">${d.date}</span>
     </div>`).join('');
 }
-
 function renderCards(){
-  const list = filtered();
-  document.getElementById('list-count').textContent = list.length + '건';
-  if(!list.length){ document.getElementById('card-list').innerHTML='<div class="empty">해당 조건의 행사가 없습니다</div>'; return; }
-  document.getElementById('card-list').innerHTML = list.map(d=>`
+  const list=filtered();
+  document.getElementById('list-count').textContent=list.length+'건';
+  if(!list.length){document.getElementById('card-list').innerHTML='<div class="empty">해당 조건의 행사가 없습니다</div>';return;}
+  document.getElementById('card-list').innerHTML=list.map(d=>`
     <div class="card">
       <div class="card-top">
         <div class="card-title">${d.title}</div>
-        <div class="card-badges">
-          <span class="badge ${B_STATUS[d.status]}">${d.status}</span>
-          <span class="badge ${B_PRIO[d.prio]}">${d.prio}</span>
-        </div>
+        <div class="card-badges"><span class="badge ${BS[d.status]}">${d.status}</span><span class="badge ${BP[d.prio]}">${d.prio}</span></div>
       </div>
       <div class="card-meta">
         <div class="meta-row"><span class="meta-key">일시</span><span class="meta-val">${d.date}</span></div>
@@ -511,25 +253,11 @@ function renderCards(){
       <div class="card-divider"></div>
       <div class="card-content">${d.content.split('/').map(s=>'· '+s.trim()).join('  ')}</div>
       <div class="card-speakers"><b>참석자</b> ${d.speakers}</div>
-      <div class="card-source">출처: ${d.src}</div>
+      <div class="card-source">출처: <a href="${d.url}" target="_blank" rel="noopener">${d.src} ↗</a></div>
     </div>`).join('');
 }
-
-document.querySelectorAll('.pill').forEach(p=>{
-  p.addEventListener('click',()=>{
-    const f=p.dataset.f, v=p.dataset.v;
-    document.querySelectorAll(`.pill[data-f="${f}"]`).forEach(x=>x.classList.remove('active'));
-    p.classList.add('active');
-    if(f==='prio') fPrio=v; else fStatus=v;
-    renderCards();
-  });
-});
-
-renderHeader();
-renderMetrics();
-renderCal();
-renderCalNote();
-renderCards();
+function render(){renderMetrics();renderCal();renderNote();renderCards();}
+render();
 </script>
 </body>
 </html>
