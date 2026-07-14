@@ -28,7 +28,7 @@ jobs:
         env:
           SHEET_ID:            ${{ secrets.SHEET_ID }}
           GITHUB_TOKEN:        ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPO:         ${{ secrets.GITHUB_REPO }}
+          GITHUB_REPO:         ${{ secrets.REPO_NAME }}
           TELEGRAM_TOKEN:      ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
         run: python sync_form.py
