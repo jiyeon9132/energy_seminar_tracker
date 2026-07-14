@@ -26,7 +26,7 @@ TG_CHANNEL = os.environ.get("TELEGRAM_CHANNEL_ID", "")
 
 SHEET_CSV_URL = (
     f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
-    f"/export?format=csv&sheet=0"
+    f"/export?format=csv&gid=1415613594"
 )
 PROCESSED_FILE = "processed_rows.json"
 
@@ -48,7 +48,12 @@ def gh_put_file(path: str, content: str, sha: str, message: str) -> bool:
     if sha:
         payload["sha"] = sha
     r = requests.put(url, json=payload,
-                     headers={"Authorization": f"token {GH_TOKEN}"})
+                     headers={
+                         "Authorization": f"token {GH_TOKEN}",
+                         "Accept": "application/vnd.github.v3+json",
+                     })
+    if r.status_code not in (200, 201):
+        print(f"  GitHub 응답: {r.status_code} {r.text[:200]}")
     return r.status_code in (200, 201)
 
 
@@ -77,6 +82,8 @@ def fetch_rows() -> list[dict]:
     """
     r = requests.get(SHEET_CSV_URL)
     r.raise_for_status()
+    # UTF-8 인코딩 명시
+    r.encoding = "utf-8"
     lines = r.text.strip().splitlines()
 
     rows = []
@@ -92,6 +99,7 @@ def fetch_rows() -> list[dict]:
                 current += ch
         cols.append(current.strip())
 
+        # 행사명(B열=index 1)이 비어있으면 건너뜀
         if len(cols) < 2 or not cols[1].strip():
             continue
 
