@@ -20,9 +20,10 @@ from datetime import datetime
 
 SHEET_ID   = os.environ["SHEET_ID"]
 GH_TOKEN   = os.environ["GITHUB_TOKEN"]
-REPO       = os.environ["GITHUB_REPO"]
-TG_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
-TG_CHANNEL = os.environ.get("TELEGRAM_CHANNEL_ID", "")
+REPO           = os.environ["GITHUB_REPO"]
+TG_TOKEN       = os.environ.get("TELEGRAM_TOKEN", "")
+TG_CHANNEL     = os.environ.get("TELEGRAM_CHANNEL_ID", "")
+DASHBOARD_URL  = os.environ.get("DASHBOARD_URL", "")
 
 SHEET_CSV_URL = (
     f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
@@ -234,6 +235,12 @@ def main():
         print("새로운 응답 없음")
         return
 
+    # 디버깅: 날짜 값 확인
+    for r in new_rows:
+        print(f"  날짜 원본값: [{r.get('date', '')}]")
+        month, day = parse_month_day(r.get('date', ''))
+        print(f"  파싱 결과: month={month}, day={day}")
+
     added = []
     for row in new_rows:
         if not row["title"]:
@@ -256,7 +263,8 @@ def main():
                 f"  일시: {r['date']} {r['time']}\n"
                 f"  주관: {r['org']}"
             )
-        lines.append("\n대시보드에서 확인하세요.")
+        dashboard = DASHBOARD_URL or f"https://{REPO.split('/')[0]}.github.io/{REPO.split('/')[-1]}"
+        lines.append(f"\n대시보드에서 확인하세요.\n{dashboard}")
         send_telegram("\n".join(lines))
         print(f"완료: {len(added)}건 추가")
 
