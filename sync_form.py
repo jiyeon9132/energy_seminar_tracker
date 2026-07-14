@@ -61,12 +61,22 @@ def gh_put_file(path: str, content: str, sha: str, message: str) -> bool:
 def parse_month_day(date_str: str) -> tuple:
     if not date_str or date_str.strip() in ("미정", "-", ""):
         return None, None
+    # 형식 1: 2026.08.01
     m = re.search(r"(\d{4})\.(\d{1,2})\.(\d{1,2})", date_str)
     if m:
         return int(m.group(2)), int(m.group(3))
-    m2 = re.search(r"(\d{4})\.(\d{1,2})", date_str)
+    # 형식 2: 2026. 8. 1 (구글 스프레드시트 자동 변환 형식)
+    m2 = re.search(r"(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})", date_str)
     if m2:
-        return int(m2.group(2)), None
+        return int(m2.group(2)), int(m2.group(3))
+    # 형식 3: 2026.08 (일 없는 경우)
+    m3 = re.search(r"(\d{4})\.(\d{1,2})", date_str)
+    if m3:
+        return int(m3.group(2)), None
+    # 형식 4: 2026/08/01
+    m4 = re.search(r"(\d{4})/(\d{1,2})/(\d{1,2})", date_str)
+    if m4:
+        return int(m4.group(2)), int(m4.group(3))
     return None, None
 
 def esc(s: str) -> str:
