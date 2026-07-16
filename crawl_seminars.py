@@ -26,17 +26,31 @@ DASHBOARD  = os.environ.get("DASHBOARD_URL", "https://energy-seminar.vercel.app"
 PROCESSED_FILE = "crawled_items.json"
 
 # ── 키워드 필터 ─────────────────────────────────────────────
-KEYWORDS = [
-    "세미나", "포럼", "토론회", "공청회", "컨퍼런스",
-    "설명회", "심포지엄", "학술대회", "간담회",
-    "재생에너지", "ESS", "전기차", "충전", "전력",
-    "수소", "배터리", "CCUS", "VPP", "PPA",
-    "에너지전환", "분산에너지", "전력망", "계통",
-    "태양광", "풍력", "HVDC", "RE100",
+# 행사 유형 (하나 이상 포함되어야 함)
+EVENT_TYPES = [
+    "세미나", "포럼", "토론회", "공청회",
+    "컨퍼런스", "설명회", "간담회",
+]
+
+# 주제 키워드 (하나 이상 포함되어야 함)
+TOPIC_KEYWORDS = [
+    "재생에너지", "태양광", "풍력", "RE100",
+    "ESS", "에너지저장",
+    "전기차", "충전", "V2G",
+    "전력망", "계통", "HVDC", "송전", "배전",
+    "수소", "연료전지",
+    "배터리", "이차전지",
+    "CCUS", "탄소포집",
+    "VPP", "가상발전소",
+    "분산에너지", "분산전원", "마이크로그리드",
+    "PPA", "전력구매계약",
 ]
 
 def has_keyword(text: str) -> bool:
-    return any(kw in text for kw in KEYWORDS)
+    """행사 유형 AND 주제 키워드 둘 다 포함되어야 True"""
+    has_event  = any(kw in text for kw in EVENT_TYPES)
+    has_topic  = any(kw in text for kw in TOPIC_KEYWORDS)
+    return has_event and has_topic
 
 def is_future(text: str) -> bool:
     """2026년 이후 날짜가 포함되어 있는지 확인"""
@@ -168,7 +182,24 @@ def add_to_html(item):
     today = now.strftime("%Y.%m.%d")
 
     def esc(s):
-        return (s or "").replace('"', '\\"').strip()
+        return (s or "").replace('\\', '\\\\').replace('"', '\\"').replace('\n', ' ').replace('\r', '').strip()
+
+    def clean_url(url):
+        if not url:
+            return ""
+        # 슬래시로 연결된 중복 URL 제거
+        for sep in ['/menu.es', '/main.es', '/sub.es']:
+            if sep in url:
+                url = url.split(sep)[0]
+        # 쿼리스트링에 또 다른 URL 경로가 섞인 경우 제거
+        if '?' in url:
+            base, query = url.split('?', 1)
+            query = query.split('/http')[0]
+            query = query.split('//')[0]
+            url = f"{base}?{query}"
+        return url.strip()
+
+    clean_item_url = clean_url(item.get("url", ""))
 
     new_entry = (
         f'  {{title:"{esc(item["title"])}",'
@@ -182,7 +213,7 @@ def add_to_html(item):
         f'content:"",'
         f'speakers:"미정",'
         f'src:"{esc(item["source"])} — 자동 수집 ({today})",'
-        f'url:"{esc(item["url"])}"}}'
+        f'url:"{esc(clean_item_url)}"}}'
     )
 
     d_var = f"D{month}"
