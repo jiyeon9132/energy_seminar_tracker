@@ -23,7 +23,7 @@ GH_TOKEN   = os.environ["GITHUB_TOKEN"]
 REPO           = os.environ["GITHUB_REPO"]
 TG_TOKEN       = os.environ.get("TELEGRAM_TOKEN", "")
 TG_CHANNEL     = os.environ.get("TELEGRAM_CHANNEL_ID", "")
-DASHBOARD_URL  = os.environ.get("DASHBOARD_URL", "https://energy-seminar.vercel.app")
+DASHBOARD_URL  = os.environ.get("DASHBOARD_URL", "")
 
 SHEET_CSV_URL = (
     f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
