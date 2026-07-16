@@ -1,0 +1,40 @@
+name: 주간 세미나 자동 크롤링
+
+on:
+  schedule:
+    - cron: '0 1 * * 1'   # 매주 월요일 10:00 KST (UTC 01:00)
+  workflow_dispatch:        # 수동 실행 버튼
+
+permissions:
+  contents: write
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 24 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 패키지 설치
+        run: pip install requests beautifulsoup4
+
+      - name: 세미나 크롤링 실행
+        env:
+          GITHUB_TOKEN:        ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO:         ${{ secrets.REPO_NAME }}
+          TELEGRAM_TOKEN:      ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          FIRECRAWL_API_KEY:   ${{ secrets.FIRECRAWL_API_KEY }}
+          DASHBOARD_URL:       ${{ secrets.DASHBOARD_URL }}
+        run: python crawl_seminars.py
