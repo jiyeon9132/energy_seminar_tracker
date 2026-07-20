@@ -1,19 +1,19 @@
 const https = require('https');
 
-const FIRECRAWL_KEY = process.env.FIRECRAWL_API_KEY;
-const GH_TOKEN      = process.env.GH_TOKEN;
-const GITHUB_REPO   = process.env.REPO_NAME;
-const TG_TOKEN      = process.env.TELEGRAM_TOKEN;
-const TG_CHANNEL    = process.env.TELEGRAM_CHANNEL_ID;
-const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://energy-seminar.vercel.app';
-
 function esc(s) {
   return (s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ').trim();
 }
 
-function fetchJson(url, options = {}) {
+function httpRequest(urlStr, options = {}, body = null) {
   return new Promise((resolve, reject) => {
-    const req = https.request(url, options, res => {
+    const url = new URL(urlStr);
+    const opts = {
+      hostname: url.hostname,
+      path: url.pathname + url.search,
+      method: options.method || 'GET',
+      headers: options.headers || {},
+    };
+    const req = https.request(opts, res => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
@@ -22,29 +22,29 @@ function fetchJson(url, options = {}) {
       });
     });
     req.on('error', reject);
-    if (options.body) req.write(options.body);
+    if (body) req.write(body);
     req.end();
   });
 }
 
 async function crawlUrl(url) {
-  const body = JSON.stringify({ url, formats: ['markdown'] });
-  const res = await fetchJson('https://api.firecrawl.dev/v1/scrape', {
+  const FC_KEY = process.env.FIRECRAWL_API_KEY;
+  const bodyStr = JSON.stringify({ url, formats: ['markdown'] });
+  const res = await httpRequest('https://api.firecrawl.dev/v1/scrape', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${FIRECRAWL_KEY}`,
+      'Authorization': `Bearer ${FC_KEY}`,
       'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(body),
+      'Content-Length': Buffer.byteLength(bodyStr),
     },
-    body,
-  });
+  }, bodyStr);
   if (res.status !== 200) throw new Error(`Firecrawl 오류: ${res.status}`);
   return res.body?.data?.markdown || '';
 }
 
 function parseEvent(markdown, sourceUrl) {
   const lines = markdown.split('\n').map(l => l.trim()).filter(Boolean);
-  const text  = lines.join(' ');
+  const text = lines.join(' ');
 
   let title = '';
   for (const line of lines) {
@@ -104,9 +104,11 @@ function parseEvent(markdown, sourceUrl) {
 }
 
 async function ghGetFile(path) {
-  const res = await fetchJson(
-    `https://api.github.com/repos/${GITHUB_REPO}/contents/${path}`,
-    { headers: { Authorization: `token ${GH_TOKEN}`, Accept: 'application/vnd.github.v3+json' } }
+  const GH_TOKEN = process.env.GH_TOKEN;
+  const REPO = process.env.REPO_NAME;
+  const res = await httpRequest(
+    `https://api.github.com/repos/${REPO}/contents/${path}`,
+    { headers: { Authorization: `token ${GH_TOKEN}`, Accept: 'application/vnd.github.v3+json', 'User-Agent': 'energy-seminar-bot' } }
   );
   if (res.status === 404) return { content: '', sha: '' };
   const content = Buffer.from(res.body.content, 'base64').toString('utf-8');
@@ -114,20 +116,23 @@ async function ghGetFile(path) {
 }
 
 async function ghPutFile(path, content, sha, message) {
+  const GH_TOKEN = process.env.GH_TOKEN;
+  const REPO = process.env.REPO_NAME;
   const encoded = Buffer.from(content, 'utf-8').toString('base64');
-  const body = JSON.stringify({ message, content: encoded, ...(sha ? { sha } : {}) });
-  const res = await fetchJson(
-    `https://api.github.com/repos/${GITHUB_REPO}/contents/${path}`,
+  const bodyStr = JSON.stringify({ message, content: encoded, ...(sha ? { sha } : {}) });
+  const res = await httpRequest(
+    `https://api.github.com/repos/${REPO}/contents/${path}`,
     {
       method: 'PUT',
       headers: {
         Authorization: `token ${GH_TOKEN}`,
         Accept: 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
+        'Content-Length': Buffer.byteLength(bodyStr),
+        'User-Agent': 'energy-seminar-bot',
       },
-      body,
-    }
+    },
+    bodyStr
   );
   return res.status === 200 || res.status === 201;
 }
@@ -136,9 +141,9 @@ async function addToHtml(event) {
   const { content: html, sha } = await ghGetFile('index.html');
   if (!html) throw new Error('index.html 읽기 실패');
 
-  const today  = new Date().toLocaleDateString('ko-KR').replace(/\. /g, '.').replace('.', '');
-  const month  = event.month;
-  const dVar   = `D${month}`;
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '.');
+  const month = event.month;
+  const dVar = `D${month}`;
 
   const newEntry = `  {title:"${esc(event.title)}",status:"일정확정",prio:"우선",day:null,date:"${esc(event.date)}",org:"${esc(event.org)}",venue:"${esc(event.venue)}",cost:"미정",content:"",speakers:"미정",src:"URL 직접 등록 (${today})",url:"${esc(event.url)}"}`;
 
@@ -161,18 +166,21 @@ async function addToHtml(event) {
     );
   }
 
-  const ok = await ghPutFile('index.html', updated, sha, `[URL등록] ${month}월 행사: ${event.title.slice(0, 30)}`);
+  const ok = await ghPutFile('index.html', updated, sha,
+    `[URL등록] ${month}월 행사: ${event.title.slice(0, 30)}`);
   if (!ok) throw new Error('GitHub 업데이트 실패');
 }
 
 async function sendTelegram(text) {
+  const TG_TOKEN = process.env.TELEGRAM_TOKEN;
+  const TG_CHANNEL = process.env.TELEGRAM_CHANNEL_ID;
+  const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://energy-seminar.vercel.app';
   if (!TG_TOKEN || !TG_CHANNEL) return;
-  const body = JSON.stringify({ chat_id: TG_CHANNEL, text });
-  await fetchJson(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+  const bodyStr = JSON.stringify({ chat_id: TG_CHANNEL, text });
+  await httpRequest(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-    body,
-  }).catch(() => {});
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(bodyStr) },
+  }, bodyStr).catch(() => {});
 }
 
 module.exports = async (req, res) => {
@@ -183,7 +191,14 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST만 허용' });
 
-  const { url } = req.body || {};
+  let body = '';
+  await new Promise(resolve => {
+    req.on('data', chunk => body += chunk);
+    req.on('end', resolve);
+  });
+
+  let url;
+  try { url = JSON.parse(body).url; } catch (e) { }
   if (!url) return res.status(400).json({ error: 'URL이 필요합니다' });
 
   try {
@@ -193,6 +208,7 @@ module.exports = async (req, res) => {
     const event = parseEvent(markdown, url);
     await addToHtml(event);
 
+    const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://energy-seminar.vercel.app';
     await sendTelegram(
       `[행사 등록 알림] URL 자동 등록\n\n` +
       `행사명: ${event.title}\n` +
@@ -202,13 +218,10 @@ module.exports = async (req, res) => {
       `대시보드: ${DASHBOARD_URL}`
     );
 
-    return res.status(200).json({
-      success: true,
-      event,
-      message: '등록 완료! 1~2분 후 대시보드에 반영됩니다.',
-    });
+    return res.status(200).json({ success: true, event });
 
   } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: err.message || '서버 오류' });
   }
 };
