@@ -260,11 +260,11 @@ def send_telegram(text):
 
 # ── 크롤링 대상 사이트 ───────────────────────────────────────
 SITES_REQUESTS = [
-    ("기후에너지환경부",   "https://www.mcee.go.kr/web/main/noticeList.do"),
+    ("기후에너지환경부",   "https://www.mcee.go.kr/home/web/index.do?menuId=10598"),
+    ("산업통상부",         "https://www.motir.go.kr/kor/article/ATCL3f49a5a8c"),
     ("한국에너지공단",     "https://www.energy.or.kr/web/kem_home_new/notice.asp"),
     ("한국전력거래소",     "https://www.kpx.or.kr/board.es?mid=a10301000000&bid=0003"),
     ("한국전력공사",       "https://home.kepco.co.kr/kepco/PR/A/htmlView/PREAAHP00202.do"),
-    ("산업통상자원부",     "https://www.motie.go.kr/motie/ne/presse/press2/bbs/bbsView.do?bbs_seq_n=&bbs_cd_n=81"),
 ]
 
 SITES_FIRECRAWL = [
