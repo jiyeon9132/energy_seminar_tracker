@@ -201,43 +201,47 @@
     document.getElementById('auto-modal').style.display='none';
   }
   async function submitAutoRegister(){
-  const url=document.getElementById('auto-url-input').value.trim();
-  const status=document.getElementById('auto-status');
-  const btn=document.getElementById('auto-submit-btn');
-  if(!url){ status.style.color='#E53E3E'; status.textContent='URL을 입력해 주세요.'; return; }
-
-  // URL 기본 검증
-  if(!url.startsWith('http')){ status.style.color='#E53E3E'; status.textContent='http 또는 https로 시작하는 URL을 입력해 주세요.'; return; }
-
-  btn.disabled=true;
-  btn.textContent='처리 중...';
-  status.style.color='var(--text-3)';
-  status.textContent='페이지 정보를 가져오는 중입니다... (10~20초 소요)';
-
-  try{
-    const res=await fetch('/api/register',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({url})
-    });
-    const data=await res.json();
-    if(res.ok && data.success){
-      status.style.color='var(--green)';
-      status.textContent=`등록 완료: ${data.event?.title?.slice(0,30) || ''}`;
-      btn.textContent='완료!';
-      setTimeout(()=>closeAutoModal(),2500);
-    } else {
+    const url=document.getElementById('auto-url-input').value.trim();
+    const status=document.getElementById('auto-status');
+    const btn=document.getElementById('auto-submit-btn');
+    if(!url){ status.style.color='#E53E3E'; status.textContent='URL을 입력해 주세요.'; return; }
+    btn.disabled=true;
+    btn.textContent='처리 중...';
+    status.style.color='var(--text-3)';
+    status.textContent='페이지 정보를 가져오는 중입니다...';
+    try{
+      const res=await fetch('/api/register',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({url})
+      });
+      const data=await res.json();
+      if(data.success){
+        status.style.color='var(--green)';
+        status.textContent=`등록 완료: ${data.event.title.slice(0,30)}`;
+        btn.textContent='완료!';
+        setTimeout(()=>closeAutoModal(),2000);
+      } else if(data.error==='PARSE_FAIL'||data.error==='CRAWL_FAIL'){
+        status.style.color='#B45309';
+        status.textContent='자동 인식 불가 — 3초 후 수기입력으로 이동합니다.';
+        btn.disabled=false;
+        btn.textContent='등록하기';
+        setTimeout(()=>{
+          closeAutoModal();
+          window.open('https://docs.google.com/forms/u/0/d/e/1FAIpQLSeAKuIhbmjC7fVjijf1uj5siJ6DNA7aQXiJv3vqwnv7IwG4MQ/formResponse','_blank');
+        },3000);
+      } else {
+        status.style.color='#E53E3E';
+        status.textContent=`오류: ${data.error}`;
+        btn.disabled=false;
+        btn.textContent='등록하기';
+      }
+    }catch(e){
       status.style.color='#E53E3E';
-      status.textContent=`오류: ${data.error || '알 수 없는 오류'}`;
+      status.textContent='네트워크 오류. 다시 시도해 주세요.';
       btn.disabled=false;
       btn.textContent='등록하기';
     }
-  }catch(e){
-    status.style.color='#E53E3E';
-    status.textContent='네트워크 오류. 다시 시도해 주세요.';
-    btn.disabled=false;
-    btn.textContent='등록하기';
-  }
   }
   // 모달 외부 클릭 시 닫기
   document.getElementById('auto-modal').addEventListener('click',function(e){
@@ -300,11 +304,7 @@ const D7=[
   {title:"에너지 안보 리스크와 배터리 공급망 강화 전략 국회토론회",status:"일정확정",prio:"최우선",day:10,date:"2026.07.10 (목) 14:00",org:"이언주·권향엽·송재봉·정진욱·허성무 의원실",venue:"국회의원회관 제2간담회실",cost:"무료",content:"글로벌 핵심 광물 패권 경쟁 및 에너지 안보 진단 / 배터리 공급망 강화 전략 / ESS·재생에너지 연계 배터리 수요 확대 방안",speakers:"이언주 의원 (더불어민주당) / 권향엽 의원 / 송재봉 의원 / NEIS 센터 관계자 / 산업통상자원부 담당자",src:"daenews.co.kr (2026.07.07)",url:"https://www.daenews.co.kr/25856"},
   {title:"제2회 글로벌 배터리 파운드리 포럼",status:"일정확정",prio:"최우선",day:15,date:"2026.07.15 (수) 10:00~17:00",org:"디일렉 / 와이일렉",venue:"포스코타워역삼 3층 이벤트홀 (역삼역 3번출구)",cost:"무료 (사전등록 마감 7.14)",content:"ESS·BESS 차세대 배터리 기술 동향 / 글로벌 배터리 공급망 전략 / 전기차·AI 데이터센터 배터리 수요 전망",speakers:"배터리 업계 전문가 / JR에너지솔루션 후원사 관계자 / 디일렉 이수환 전문기자",src:"thelec.kr (2026.06.30)",url:"https://www.thelec.kr/news/articleView.html?idxno=58722"},
   {title:"전기차·충전인프라 구축 실무 세미나 [산업교육연구소]",status:"개최추정",prio:"우선",day:null,date:"2026.07 (분기별 추정)",org:"산업교육연구소",venue:"서울 여의도 전경련회관",cost:"유료 (35~55만원 추정)",content:"전기차 충전시설 법령·인허가 실무 / V2G·스마트충전 기술 동향 / 공공기관 충전 의무화 정책",speakers:"기후에너지환경부 탈탄소수송 담당 (연사 미확정)",src:"kiet.co.kr",url:"https://www.kiet.co.kr"},
-  {title:"재생에너지 입찰·계통 관련 정책설명회",status:"개최추정",prio:"최우선",day:null,date:"2026.07 (일정 미정)",org:"기후에너지환경부 / 한국에너지공단",venue:"서울 또는 세종 (추후 공지)",cost:"무료",content:"6월 공청회 후속 사업자 정책 설명 / 계약시장 전환 세부 일정 안내 / 재생에너지 접속 확대 방안",speakers:"윤정원 재생에너지정책과장 (기후에너지환경부) / 한국에너지공단 담당자",src:"mcee.go.kr",url:"https://www.mcee.go.kr"},,
-  {title:"KPX소개",status:"일정확정",prio:"우선",day:null,date:"미정",org:"미정",venue:"미정",cost:"미정",content:"",speakers:"미정",src:"URL 직접 등록 (2026.07.20)",url:"https://www.kpx.or.kr/board.es?mid=a10301000000&bid=0003"},
-  {title:"- ![](https://www.mcee.go.kr/images/error/error_img.gif)",status:"일정확정",prio:"우선",day:null,date:"미정",org:"미정",venue:"미정",cost:"미정",content:"",speakers:"미정",src:"URL 직접 등록 (2026.07.20)",url:"https://www.mcee.go.kr/web/main/noticeList.do"},
-  {title:"Forbidden",status:"일정확정",prio:"우선",day:null,date:"미정",org:"미정",venue:"미정",cost:"미정",content:"",speakers:"미정",src:"URL 직접 등록 (2026.07.20)",url:"https://seminarhub.co.kr/product/item.php?it_id=1773882343&st=ing"},
-  {title:"외부 행사안내",status:"일정확정",prio:"우선",day:null,date:"미정",org:"미정",venue:"미정",cost:"미정",content:"",speakers:"미정",src:"URL 직접 등록 (2026.07.21)",url:"https://ksga.org/web/Board/7827/detailView.do?pageIndex=1"}
+  {title:"재생에너지 입찰·계통 관련 정책설명회",status:"개최추정",prio:"최우선",day:null,date:"2026.07 (일정 미정)",org:"기후에너지환경부 / 한국에너지공단",venue:"서울 또는 세종 (추후 공지)",cost:"무료",content:"6월 공청회 후속 사업자 정책 설명 / 계약시장 전환 세부 일정 안내 / 재생에너지 접속 확대 방안",speakers:"윤정원 재생에너지정책과장 (기후에너지환경부) / 한국에너지공단 담당자",src:"mcee.go.kr",url:"https://www.mcee.go.kr"},
 ];
 
 const BS={일정확정:'b-conf',일정조율중:'b-plan',개최추정:'b-est'};
