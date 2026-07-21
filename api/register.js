@@ -38,7 +38,8 @@ async function crawlUrl(url) {
       'Content-Length': Buffer.byteLength(bodyStr),
     },
   }, bodyStr);
-  if (res.status !== 200) throw new Error(`Firecrawl 오류: ${res.status}`);
+  if (res.status === 403) throw new Error('FORBIDDEN');
+  if (res.status !== 200) throw new Error(`CRAWL_FAIL:${res.status}`);
   return res.body?.data?.markdown || '';
 }
 
@@ -46,6 +47,7 @@ function parseEvent(markdown, sourceUrl) {
   const lines = markdown.split('\n').map(l => l.trim()).filter(Boolean);
   const text = lines.join(' ');
 
+  // 제목
   let title = '';
   for (const line of lines) {
     if (line.startsWith('#')) { title = line.replace(/^#+\s*/, '').trim(); break; }
@@ -54,9 +56,10 @@ function parseEvent(markdown, sourceUrl) {
     const bold = markdown.match(/\*\*([^*]{10,80})\*\*/);
     if (bold) title = bold[1].trim();
   }
-  if (!title) title = lines[0]?.slice(0, 60) || '제목 미확인';
+  if (!title) title = lines[0]?.slice(0, 60) || '';
 
-  let date = '미정';
+  // 날짜
+  let date = '';
   const datePatterns = [
     /202[6-9][.\s년]\s*(\d{1,2})[.\s월]\s*(\d{1,2})/,
     /(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/,
@@ -67,14 +70,17 @@ function parseEvent(markdown, sourceUrl) {
     if (m) { date = m[0].replace(/\s+/g, ''); break; }
   }
 
-  let time = '미정';
+  // 시간
+  let time = '';
   const timeMatch = text.match(/(\d{1,2})[시:]\s*(\d{2})분?/);
   if (timeMatch) time = `${timeMatch[1]}:${timeMatch[2]}`;
 
-  const displayDate = (date !== '미정' && time !== '미정')
-    ? `${date} ${time}` : date;
+  const displayDate = date
+    ? (time ? `${date} ${time}` : date)
+    : '미정';
 
-  let venue = '미정';
+  // 장소
+  let venue = '';
   const venuePatterns = [
     /장소\s*[:：]\s*([^\n,]{5,40})/,
     /위치\s*[:：]\s*([^\n,]{5,40})/,
@@ -85,7 +91,8 @@ function parseEvent(markdown, sourceUrl) {
     if (m) { venue = (m[1] || m[0]).trim().slice(0, 40); break; }
   }
 
-  let org = '미정';
+  // 주관
+  let org = '';
   const orgPatterns = [
     /주관\s*[:：]\s*([^\n,]{3,30})/,
     /주최\s*[:：]\s*([^\n,]{3,30})/,
@@ -96,11 +103,15 @@ function parseEvent(markdown, sourceUrl) {
     if (m) { org = m[1].trim().slice(0, 30); break; }
   }
 
+  // 월
   let month = new Date().getMonth() + 1;
   const mMatch = text.match(/202[6-9][.\s년]\s*(\d{1,2})/);
   if (mMatch) month = parseInt(mMatch[1]);
 
-  return { title, date: displayDate, org, venue, month, url: sourceUrl };
+  // 파싱 품질 점수 (제목+날짜+장소+주관 중 몇 개 파싱됐는지)
+  const score = [title, date, venue, org].filter(Boolean).length;
+
+  return { title, date: displayDate, org: org || '미정', venue: venue || '미정', month, url: sourceUrl, score };
 }
 
 async function ghGetFile(path) {
@@ -174,7 +185,6 @@ async function addToHtml(event) {
 async function sendTelegram(text) {
   const TG_TOKEN = process.env.TELEGRAM_TOKEN;
   const TG_CHANNEL = process.env.TELEGRAM_CHANNEL_ID;
-  const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://energy-seminar.vercel.app';
   if (!TG_TOKEN || !TG_CHANNEL) return;
   const bodyStr = JSON.stringify({ chat_id: TG_CHANNEL, text });
   await httpRequest(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
@@ -192,20 +202,29 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST만 허용' });
 
   let body = '';
-  await new Promise(resolve => {
-    req.on('data', chunk => body += chunk);
-    req.on('end', resolve);
-  });
+  await new Promise(resolve => { req.on('data', c => body += c); req.on('end', resolve); });
 
   let url;
-  try { url = JSON.parse(body).url; } catch (e) { }
+  try { url = JSON.parse(body).url; } catch (e) {}
   if (!url) return res.status(400).json({ error: 'URL이 필요합니다' });
 
   try {
     const markdown = await crawlUrl(url);
-    if (!markdown) throw new Error('페이지 내용을 가져올 수 없습니다');
+    if (!markdown) throw new Error('CRAWL_FAIL:EMPTY');
 
     const event = parseEvent(markdown, url);
+
+    // 파싱 품질이 낮으면 수기입력 안내
+    // score: 제목+날짜+장소+주관 중 파싱된 항목 수 (최대 4)
+    if (event.score < 2) {
+      return res.status(422).json({
+        error: 'PARSE_FAIL',
+        message: '페이지에서 행사 정보를 자동으로 읽을 수 없습니다.',
+        suggestion: '수기입력을 이용해 주세요.',
+        parsedTitle: event.title || '',
+      });
+    }
+
     await addToHtml(event);
 
     const DASHBOARD_URL = process.env.DASHBOARD_URL || 'https://energy-seminar.vercel.app';
@@ -221,7 +240,14 @@ module.exports = async (req, res) => {
     return res.status(200).json({ success: true, event });
 
   } catch (err) {
-    console.error(err);
+    // 크롤링 차단 또는 접근 불가
+    if (err.message === 'FORBIDDEN' || err.message?.startsWith('CRAWL_FAIL')) {
+      return res.status(422).json({
+        error: 'CRAWL_FAIL',
+        message: '해당 페이지에 접근할 수 없습니다.',
+        suggestion: '수기입력을 이용해 주세요.',
+      });
+    }
     return res.status(500).json({ error: err.message || '서버 오류' });
   }
 };
