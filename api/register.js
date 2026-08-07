@@ -159,6 +159,11 @@ async function addToHtml(event) {
   const newEntry = `  {title:"${esc(event.title)}",status:"일정확정",prio:"우선",day:null,date:"${esc(event.date)}",org:"${esc(event.org)}",venue:"${esc(event.venue)}",cost:"미정",content:"",speakers:"미정",src:"URL 직접 등록 (${today})",url:"${esc(event.url)}"}`;
 
   let updated = html;
+  if (/const LAST_UPDATED="[^"]*";/.test(updated)) {
+    updated = updated.replace(/const LAST_UPDATED="[^"]*";/, `const LAST_UPDATED="${today}";`);
+  } else {
+    updated = updated.replace(/(const DATA_MAP\s*=)/, `const LAST_UPDATED="${today}";\n$1`);
+  }
   if (updated.includes(`const ${dVar}=[`)) {
     updated = updated.replace(
       new RegExp(`(const ${dVar}=\\[)([\\s\\S]*?)(\\];)`),

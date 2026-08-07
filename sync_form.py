@@ -201,6 +201,13 @@ def add_event_to_html(row: dict) -> tuple[bool, str]:
             html,
         )
 
+    if re.search(r'const LAST_UPDATED="[^"]*";', html):
+        html = re.sub(r'const LAST_UPDATED="[^"]*";',
+                      f'const LAST_UPDATED="{today}";', html)
+    else:
+        html = re.sub(r"(const DATA_MAP\s*=)",
+                      f'const LAST_UPDATED="{today}";\n\\1', html, count=1)
+
     ok = gh_put_file(
         "index.html", html, sha,
         f"[폼] {month}월 행사 추가: {row['title']}"

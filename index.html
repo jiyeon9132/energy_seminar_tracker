@@ -318,6 +318,7 @@ const NEXT_M = THIS_M === 12 ? 1 : THIS_M + 1;
 const NEXT_Y = THIS_M === 12 ? THIS_Y + 1 : THIS_Y;
 
 // 월별 데이터 맵 (6월 시작 ~ 이후 월 추가)
+const LAST_UPDATED="2026.08.07";
 const D8=[
   {title:"석탄발전 5사 재편안 후속 공청회·토론회",status:"일정조율중",prio:"최우선",day:null,date:"2026.08 초~중순 (발표 후 개최 예상)",org:"기후에너지환경부",venue:"서울 또는 세종 (추후 공지)",cost:"무료",content:"석탄발전 5사 1사 통합 재편안 공식 발표 / 한국발전공사법(특별법) 제정 논의 / 발전공기업 재생에너지 기능 전환 방향 / 사업자·이해관계자 의견 수렴",speakers:"김성환 장관 (기후에너지환경부) / 발전공기업 구조개편 담당 국장 (기후에너지환경부) / 발전 5사 관계자",src:"climateinfact.org (2026.07.07 보도)",url:"https://www.climateinfact.org/news/articleView.html?idxno=205"},
   {title:"제12차 전력수급기본계획 전문가위원회 공개토론회",status:"개최추정",prio:"최우선",day:null,date:"2026.08~09 (분기 내 추정)",org:"기후에너지환경부 / 전력정책심의회",venue:"서울 (추후 공지)",cost:"무료",content:"12차 전기본 실무안 논의 현황 / 3대 메가프로젝트 반영 전력수요 재전망 / 재생에너지·원전·ESS 전원믹스 방향 / 연말 최종안 확정 전 의견 수렴",speakers:"기후에너지환경부 전력수급 담당 실장·과장 / 전문가위원회 위원 / 에너지 학계 교수",src:"뉴데일리 2026.07.09 보도 / mcee.go.kr",url:"https://biz.newdaily.co.kr/site/data/html/2026/07/09/2026070900082.html"},
@@ -379,7 +380,7 @@ makeMonthList().forEach(({y,m})=>{
   tabWrap.appendChild(t);
 });
 
-document.getElementById('updated-date').textContent='업데이트: '+NOW.toLocaleDateString('ko-KR');
+document.getElementById('updated-date').textContent='업데이트: '+LAST_UPDATED;
 document.querySelectorAll('.pill').forEach(p=>{
   p.addEventListener('click',()=>{
     const f=p.dataset.f,v=p.dataset.v;

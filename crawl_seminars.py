@@ -233,16 +233,38 @@ def add_to_html(item):
             html,
         )
 
-    # 업데이트 날짜 갱신
-    html = re.sub(
-        r"'업데이트: '[^']+\.toLocaleDateString\('ko-KR'\)",
-        f"'업데이트: {today}'",
-        html,
-    )
+    # 업데이트 날짜 갱신 (대시보드 상단에 실제 데이터 갱신일 표시)
+    html = update_last_updated(html, today)
 
     ok = gh_put_file("index.html", html, sha,
                      f"[크롤러] {month}월 행사 추가: {item['title'][:30]}")
     return ok, "" if ok else "GitHub 업데이트 실패"
+
+
+def update_last_updated(html, today):
+    if re.search(r'const LAST_UPDATED="[^"]*";', html):
+        return re.sub(r'const LAST_UPDATED="[^"]*";',
+                       f'const LAST_UPDATED="{today}";', html)
+    # LAST_UPDATED 선언이 없으면 새로 추가 (하위 호환)
+    return re.sub(r"(const DATA_MAP\s*=)",
+                  f'const LAST_UPDATED="{today}";\n\\1', html, count=1)
+
+
+def count_month_stats(html, month):
+    """index.html의 D{month} 배열을 파싱해 현재 누적 현황 집계"""
+    match = re.search(rf"const D{month}=\[([\s\S]*?)\];", html)
+    if not match:
+        return {"total": 0, "conf": 0, "plan": 0, "est": 0, "high": 0}
+    body = match.group(1)
+    statuses = re.findall(r'status:"([^"]*)"', body)
+    prios = re.findall(r'prio:"([^"]*)"', body)
+    return {
+        "total": len(statuses),
+        "conf": statuses.count("일정확정"),
+        "plan": statuses.count("일정조율중"),
+        "est": statuses.count("개최추정"),
+        "high": prios.count("최우선"),
+    }
 
 
 # ── 텔레그램 발송 ────────────────────────────────────────────
@@ -312,18 +334,7 @@ def main():
 
     print(f"\n신규 항목: {len(new_items)}개")
 
-    if not new_items:
-        # 신규 없어도 텔레그램 발송
-        send_telegram(
-            f"[에너지 세미나 주간 업데이트]\n"
-            f"업데이트: {datetime.now().strftime('%Y.%m.%d')}\n\n"
-            f"이번 주 신규 감지 행사 없음\n\n"
-            f"대시보드: {DASHBOARD}"
-        )
-        print("신규 항목 없음 — 텔레그램 알림 발송 완료")
-        return
-
-    # index.html에 추가
+    # index.html에 추가 (신규 항목이 있을 때만)
     added = []
     for item in new_items:
         ok, err = add_to_html(item)
@@ -337,15 +348,23 @@ def main():
     if added:
         save_processed(processed, proc_sha)
 
-    # 텔레그램 발송
+    # 최신 index.html 기준으로 이번 달 누적 현황 집계 (하드코딩 없이 실데이터 기반)
+    now = datetime.now()
+    html, _ = gh_get_file("index.html")
+    stats = count_month_stats(html, now.month)
+
+    week = (now.day - 1) // 7 + 1
     lines = [
-        f"[에너지 세미나 주간 업데이트]",
-        f"업데이트: {datetime.now().strftime('%Y.%m.%d')}",
+        f"[에너지 세미나 주간 업데이트 | {now.month}월 {week}주차]",
+        f"업데이트: {now.strftime('%Y.%m.%d')}",
+        "",
+        f"이번 달 누적 현황: 전체 {stats['total']}건 | "
+        f"확정 {stats['conf']} | 조율중 {stats['plan']} | "
+        f"추정 {stats['est']} | 최우선 {stats['high']}",
         "",
     ]
     if added:
-        lines.append(f"신규 감지 행사 {len(added)}건")
-        lines.append("-" * 28)
+        lines.append(f"-- 이번 주 신규 감지 행사 {len(added)}건 --")
         for i, item in enumerate(added[:5], 1):  # 최대 5건만 표시
             lines.append(f"{i}. {item['title'][:40]}")
             lines.append(f"   출처: {item['source']}")
@@ -353,6 +372,9 @@ def main():
         if len(added) > 5:
             lines.append(f"외 {len(added)-5}건 — 대시보드에서 확인")
             lines.append("")
+    else:
+        lines.append("-- 이번 주 신규 감지 행사 없음 --")
+        lines.append("")
     lines += [
         "=" * 28,
         "자동 수집 데이터는 반드시 직접 확인 후 참석 결정하세요.",
