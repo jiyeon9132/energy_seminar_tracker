@@ -241,20 +241,19 @@ def send_telegram(text):
 
 SITES_REQUESTS = [
     ("기후에너지환경부", "https://www.mcee.go.kr/home/web/index.do?menuId=10598"),
-    ("산업통상부", "https://www.motir.go.kr/kor/article/ATCL3f49a5a8c"),
-    ("한국에너지공단", "https://www.energy.or.kr/web/kem_home_new/notice.asp"),
-    ("한국전력거래소", "https://www.kpx.or.kr/board.es?mid=a10301000000&bid=0003"),
-    ("한국전력공사", "https://home.kepco.co.kr/kepco/PR/A/htmlView/PREAAHP00202.do"),
-    ("KHARN", "https://www.kharn.kr/news/section.html?sec_no=3"),
-    ("전기신문", "https://www.electimes.com/news/articleList.html?sc_section_code=S1N4"),
+    ("산업통상부",       "https://www.motir.go.kr/kor/article/ATCL3f49a5a8c"),
+    ("한국에너지공단",   "https://www.energy.or.kr/web/kem_home_new/notice.asp"),
+    ("한국전력거래소",   "https://www.kpx.or.kr/board.es?mid=a10301000000&bid=0003"),
+    ("한국전력공사",     "https://home.kepco.co.kr/kepco/PR/A/htmlView/PREAAHP00202.do"),
 ]
 
 SITES_FIRECRAWL = [
-    ("에너지전환포럼", "https://www.energytransitionkorea.org/event"),
-    ("스마트그리드협회", "https://www.ksg.or.kr/bbs/board.php?bo_table=notice"),
-    ("산업교육연구소", "https://www.kiei.com/education/schedule?t=schedule_01"),
+    ("에너지전환포럼",    "https://www.energytransitionkorea.org/event"),
+    ("스마트그리드협회",  "https://www.ksg.or.kr/bbs/board.php?bo_table=notice"),
+    ("산업교육연구소",    "https://www.kiei.com/education/schedule?t=schedule_01"),
     ("국회도서관 세미나", "https://ampos.nanet.go.kr/seminarList.do"),
-    ("에너지미래포럼", "https://www.energyfuture.kr/"),
+    ("KHARN",             "https://www.kharn.kr/news/section.html?sec_no=3"),
+    ("전기신문",          "https://www.electimes.com/news/articleList.html?sc_section_code=S1N4"),
 ]
 
 
