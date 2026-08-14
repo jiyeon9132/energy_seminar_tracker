@@ -153,6 +153,24 @@ def extract_items_from_html(html, source_name, source_url):
     return items
 
 
+def extract_ksga_events(html, source_name):
+    """한국스마트그리드협회(ksga.org) '외부 행사안내' 게시판 전용 파서.
+
+    이 게시판은 항목 링크가 <a href="javascript:;" onclick="pf_DetailMove('7841')">
+    형태라 실제 href가 없고, 대신 JS로 폼을 만들어 /web/Board/{id}/detailView.do 로
+    이동한다. 그 URL 패턴이 GET으로도 그대로 열리는 것을 확인했으므로, onclick에서
+    게시글 번호만 추출해 상세페이지 URL을 직접 구성한다.
+    """
+    items = []
+    pattern = r'<a[^>]*onclick="pf_DetailMove\(\'(\d+)\'\)"[^>]*>((?:(?!</a>).){5,200})</a>'
+    for match in re.finditer(pattern, html, re.DOTALL):
+        bn_id, text = match.group(1), normalize_text(match.group(2))
+        if has_keyword(text) and len(text) > 10:
+            url = f"https://ksga.org/web/Board/{bn_id}/detailView.do?pageIndex=1"
+            items.append({"title": text, "url": url, "source": source_name})
+    return items
+
+
 def crawl_with_firecrawl(url, source_name):
     if not FC_KEY:
         print(f"  Firecrawl API 키 없음 — {source_name} 건너뜀")
@@ -284,15 +302,17 @@ def fetch_event_detail(url):
         if content:
             detail["content"] = content
 
-    # 일부 사이트(예: KIEI)는 연사·프로그램 정보를 텍스트가 아니라 이미지(gif/jpg)로만
-    # 제공한다. 이 경우 텍스트 정규식으로는 절대 추출할 수 없으므로, 조용히 빈 값으로
+    # 일부 사이트(KIEI, ksga.org 등)는 연사·프로그램 정보를 텍스트가 아니라
+    # 포스터 이미지로만 제공한다(파일 확장자 없는 동적 다운로드 URL도 있음).
+    # 이 경우 텍스트 정규식으로는 절대 추출할 수 없으므로, 조용히 빈 값으로
     # 두는 대신 이미지로 제공된다는 사실을 명시해 원문 링크 확인을 유도한다.
     if "speakers" not in detail and "content" not in detail:
-        mentions_program = re.search(r"(?:연사|강사|프로그램|커리큘럼)", md)
-        has_content_image = re.search(
-            r"!\[[^\]]*\]\([^)]*\.(?:gif|jpg|jpeg|png)\)", md, re.IGNORECASE
-        )
-        if mentions_program and has_content_image:
+        img_urls = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", md)
+        content_images = [
+            u for u in img_urls
+            if not re.search(r"(logo|loading|/common/images/|/resources/img/)", u, re.IGNORECASE)
+        ]
+        if content_images:
             detail["content"] = "프로그램·연사 정보는 이미지로 제공되어 자동 추출 불가 — 원문 링크에서 확인"
 
     return detail or None
@@ -426,12 +446,15 @@ SITES_REQUESTS = [
 
 SITES_FIRECRAWL = [
     ("에너지전환포럼",    "https://www.energytransitionkorea.org/event"),
-    ("스마트그리드협회",  "https://www.ksg.or.kr/bbs/board.php?bo_table=notice"),
     ("산업교육연구소",    "https://www.kiei.com/education/schedule?t=schedule_01"),
     ("국회도서관 세미나", "https://ampos.nanet.go.kr/seminarList.do"),
     ("KHARN",             "https://www.kharn.kr/news/section.html?sec_no=3"),
     ("전기신문",          "https://www.electimes.com/news/articleList.html?sc_section_code=S1N4"),
 ]
+
+# ksga.org(한국스마트그리드협회)는 목록 링크가 JS onclick 기반이라
+# 전용 파서(extract_ksga_events)로 별도 처리한다.
+SITE_KSGA = ("한국스마트그리드협회", "https://ksga.org/web/notice/event_out.do")
 
 
 def main():
@@ -448,6 +471,14 @@ def main():
             items = extract_items_from_html(html, name, url)
             print(f"  {len(items)}개 항목 감지")
             all_items.extend(items)
+
+    ksga_name, ksga_url = SITE_KSGA
+    print(f"크롤링 중: {ksga_name}")
+    ksga_html = crawl_with_requests(ksga_url)
+    if ksga_html:
+        ksga_items = extract_ksga_events(ksga_html, ksga_name)
+        print(f"  {len(ksga_items)}개 항목 감지")
+        all_items.extend(ksga_items)
 
     for name, url in SITES_FIRECRAWL:
         print(f"크롤링 중 (Firecrawl): {name}")
