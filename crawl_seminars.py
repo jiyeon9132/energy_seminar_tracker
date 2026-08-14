@@ -197,7 +197,8 @@ def crawl_nanet_assembly(days_ahead=45):
     cur_month_start = today.replace(day=1)
     while cur_month_start <= horizon:
         next_month_start = (cur_month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
-        month_start = max(cur_month_start, today)
+        # 이번 달은 오늘 이전 날짜도 포함해 지난 세미나도 기록으로 남긴다.
+        month_start = cur_month_start
         month_end = min(next_month_start - timedelta(days=1), horizon)
         month_str = cur_month_start.strftime("%Y%m")
 
