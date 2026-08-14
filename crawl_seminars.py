@@ -287,6 +287,8 @@ SITES_REQUESTS = [
     ("한국에너지공단",     "https://www.energy.or.kr/web/kem_home_new/notice.asp"),
     ("한국전력거래소",     "https://www.kpx.or.kr/board.es?mid=a10301000000&bid=0003"),
     ("한국전력공사",       "https://home.kepco.co.kr/kepco/PR/A/htmlView/PREAAHP00202.do"),
+    ("KHARN",              "https://www.kharn.kr/news/section.html?sec_no=3"),
+    ("전기신문",           "https://www.electimes.com/news/articleList.html?sc_section_code=S1N4"),
 ]
 
 SITES_FIRECRAWL = [
