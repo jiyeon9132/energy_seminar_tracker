@@ -292,7 +292,7 @@ SITES_REQUESTS = [
 SITES_FIRECRAWL = [
     ("에너지전환포럼",     "https://www.energytransitionkorea.org/event"),
     ("스마트그리드협회",   "https://www.ksg.or.kr/bbs/board.php?bo_table=notice"),
-    ("산업교육연구소",     "https://www.kiet.co.kr/"),
+    ("산업교육연구소",     "https://www.kiei.com/education/schedule?t=schedule_01"),
     ("국회도서관 세미나",  "https://ampos.nanet.go.kr/seminarList.do"),
     ("에너지미래포럼",     "https://www.energyfuture.kr/"),
 ]
