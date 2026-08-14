@@ -283,6 +283,17 @@ def fetch_event_detail(url):
         if content:
             detail["content"] = content
 
+    # 일부 사이트(예: KIEI)는 연사·프로그램 정보를 텍스트가 아니라 이미지(gif/jpg)로만
+    # 제공한다. 이 경우 텍스트 정규식으로는 절대 추출할 수 없으므로, 조용히 빈 값으로
+    # 두는 대신 이미지로 제공된다는 사실을 명시해 원문 링크 확인을 유도한다.
+    if "speakers" not in detail and "content" not in detail:
+        mentions_program = re.search(r"(?:연사|강사|프로그램|커리큘럼)", md)
+        has_content_image = re.search(
+            r"!\[[^\]]*\]\([^)]*\.(?:gif|jpg|jpeg|png)\)", md, re.IGNORECASE
+        )
+        if mentions_program and has_content_image:
+            detail["content"] = "프로그램·연사 정보는 이미지로 제공되어 자동 추출 불가 — 원문 링크에서 확인"
+
     return detail or None
 
 
