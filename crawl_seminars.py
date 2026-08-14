@@ -170,22 +170,19 @@ def clean_url(url):
     return url.strip()
 
 def esc(s):
-     if not s:
+    if not s:
         return ""
-    # JS 문자열을 깨는 특수문자 제거/치환
-    s = s.replace('\\', '\\\\')   # 백슬래시
-    s = s.replace('"', '\\"')      # 큰따옴표
-    s = s.replace('\n', ' ')       # 줄바꿈
-    s = s.replace('\r', '')        # 캐리지리턴
-    s = s.replace('\t', ' ')       # 탭
-    # 마크다운 특수문자 제거
-    s = re.sub(r'\*+', '', s)      # ** * 제거
-    s = re.sub(r'#+\s*', '', s)    # ## # 제거
-    s = re.sub(r'\[([^\]]*)\]\([^\)]*\)', r'\1', s)  # [텍스트](링크) → 텍스트
-    s = re.sub(r'`+', '', s)       # 백틱 제거
-    s = re.sub(r'_{2,}', '', s)    # __ 제거
-    s = re.sub(r'<[^>]+>', '', s)  # HTML 태그 제거
-    # 연속 공백 정리
+    s = s.replace('\\', '\\\\')
+    s = s.replace('"', '\\"')
+    s = s.replace('\n', ' ')
+    s = s.replace('\r', '')
+    s = s.replace('\t', ' ')
+    s = re.sub(r'\*+', '', s)
+    s = re.sub(r'#+\s*', '', s)
+    s = re.sub(r'\[([^\]]*)\]\([^\)]*\)', r'\1', s)
+    s = re.sub(r'`+', '', s)
+    s = re.sub(r'_{2,}', '', s)
+    s = re.sub(r'<[^>]+>', '', s)
     s = re.sub(r'\s+', ' ', s)
     return s.strip()
 
