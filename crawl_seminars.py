@@ -183,12 +183,107 @@ def crawl_with_firecrawl(url, source_name):
                 text, link = m.group(1).strip(), m.group(2)
                 if has_keyword(text):
                     items.append({"title": text, "url": link, "source": source_name})
-            elif has_keyword(line) and len(line) > 15:
-                items.append({"title": line[:80], "url": url, "source": source_name})
+            # 링크 없이 목록 텍스트만으로 항목을 만들면(과거 elif 분기) 표 형태로
+            # 여러 줄에 걸쳐 잘린 문자열("| 6 | - [ESS 대전환..." 등)이 그대로
+            # 제목이 되어버려 실제 페이지와 무관한 데이터가 들어갔다.
+            # 개별 상세 링크를 확실히 잡은 항목만 신뢰할 수 있으므로 이 fallback은 두지 않는다.
         return items
     except Exception as e:
         print(f"  Firecrawl 예외 ({source_name}): {e}")
         return []
+
+
+def fetch_event_detail(url):
+    """상세 페이지에서 실제 제목·일시·장소·참가비·연사/프로그램을 추출한다.
+
+    목록 페이지 텍스트만으로는 실제 개최일을 알 수 없어 크롤링 실행 시점의
+    월로 잘못 분류되고(day도 항상 null) 캘린더에 반영되지 않는 문제가 있었다.
+    실패 시 None을 반환해 호출부가 기존 placeholder를 그대로 쓰도록 한다.
+    """
+    if not FC_KEY or not url or not url.startswith("http"):
+        return None
+    try:
+        r = requests.post(
+            "https://api.firecrawl.dev/v1/scrape",
+            headers={
+                "Authorization": f"Bearer {FC_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={"url": url, "formats": ["markdown"]},
+            timeout=30,
+        )
+        if r.status_code != 200:
+            return None
+        md = r.json().get("data", {}).get("markdown", "")
+        if not md:
+            return None
+    except Exception as e:
+        print(f"  상세 페이지 크롤링 예외 ({url}): {e}")
+        return None
+
+    detail = {}
+
+    # 제목: 첫 markdown 헤딩 또는 굵은 글씨 첫 줄
+    m = re.search(r"^#{1,3}\s+(.{5,120})$", md, re.MULTILINE)
+    if not m:
+        m = re.search(r"\*\*(.{5,120})\*\*", md)
+    if m:
+        title = normalize_text(m.group(1))
+        if len(title) > 8:
+            detail["title"] = title
+
+    # 날짜: YYYY-MM-DD 또는 YYYY.MM.DD (범위 포함)
+    m = re.search(
+        r"(\d{4})[.\-](\d{2})[.\-](\d{2})(?:\s*[~\-]\s*(\d{4})[.\-](\d{2})[.\-](\d{2}))?",
+        md,
+    )
+    if m:
+        y1, mo1, d1, y2, mo2, d2 = m.groups()
+        start = f"{y1}.{mo1}.{d1}"
+        if y2 and (y2, mo2, d2) != (y1, mo1, d1):
+            if y2 == y1 and mo2 == mo1:
+                end = d2
+            elif y2 == y1:
+                end = f"{mo2}.{d2}"
+            else:
+                end = f"{y2}.{mo2}.{d2}"
+            detail["date"] = f"{start}~{end}"
+        else:
+            detail["date"] = start
+        detail["day"] = int(d1)
+        month_num = int(mo1)
+        if 1 <= month_num <= 12:
+            detail["month"] = month_num
+
+    # 장소
+    m = re.search(r"장소[\s:*|]*\n?\s*([^\n]{2,60})", md)
+    if m:
+        venue = normalize_text(m.group(1))
+        if venue and "장소" not in venue:
+            detail["venue"] = venue
+
+    # 참가비
+    m = re.search(r"참가(?:료|비)[\s:*|]*\n?\s*([^\n]{1,40})", md)
+    if m:
+        cost = normalize_text(m.group(1))
+        if cost:
+            detail["cost"] = cost
+
+    # 연사/강사
+    m = re.search(r"(?:연사|강사)[\s:*|]*\n?\s*([^\n]{2,120})", md)
+    if m:
+        speakers = normalize_text(m.group(1))
+        if speakers:
+            detail["speakers"] = speakers
+
+    # 프로그램/교육내용
+    m = re.search(r"(?:교육내용|커리큘럼|프로그램)[\s:*|]*\n((?:.{1,200}\n?){1,6})", md)
+    if m:
+        content = normalize_text(m.group(1))[:200]
+        if content:
+            detail["content"] = content
+
+    return detail or None
 
 
 def add_to_html(item):
@@ -198,23 +293,34 @@ def add_to_html(item):
         return False, str(e)
 
     now = datetime.now()
-    month = now.month
     today = now.strftime("%Y.%m.%d")
     item_url = clean_url(item.get("url", ""))
     source_name = item.get("source", "")
     src_text = f"{source_name} — 자동 수집 ({today})"
 
+    # 상세 페이지에서 실제 개최월을 얻었으면 그 달에 배치한다.
+    # (목록 페이지만 봐서는 실제 날짜를 몰라, 예전엔 크롤링 실행월에 무조건
+    #  넣어버려 9월 세미나가 8월 탭에 들어가는 식의 오배치가 있었다.)
+    month = item.get("month") or now.month
+    date_str = item.get("date") or f"{now.year}.{month:02d} (크롤링 수집)"
+    day_val = item.get("day")
+    day_js = str(int(day_val)) if day_val else "null"
+    venue = item.get("venue") or "미정"
+    cost = item.get("cost") or "미정"
+    speakers = item.get("speakers") or "미정"
+    content = item.get("content") or ""
+
     new_entry = (
         f'  {{title:{esc(item.get("title", ""))},'
         f'status:"개최추정",'
         f'prio:"우선",'
-        f'day:null,'
-        f'date:"{now.year}.{month:02d} (크롤링 수집)",'
+        f'day:{day_js},'
+        f'date:{esc(date_str)},'
         f'org:{esc(source_name)},'
-        f'venue:"미정",'
-        f'cost:"미정",'
-        f'content:"",'
-        f'speakers:"미정",'
+        f'venue:{esc(venue)},'
+        f'cost:{esc(cost)},'
+        f'content:{esc(content)},'
+        f'speakers:{esc(speakers)},'
         f'src:{esc(src_text)},'
         f'url:{esc_url(item_url)}}}'
     )
@@ -348,9 +454,16 @@ def main():
 
     added = []
     for item in new_items:
+        # 중복 방지 키는 상세 페이지 보강 전(원래 목록에서 긁은) 제목 기준으로
+        # 고정해야 다음 주 재크롤링 시에도 같은 키가 나와 중복 등록을 막을 수 있다.
+        dedup_key = item["title"][:50]
+        if FC_KEY:
+            detail = fetch_event_detail(item.get("url", ""))
+            if detail:
+                item.update(detail)
         ok, err = add_to_html(item)
         if ok:
-            processed.add(item["title"][:50])
+            processed.add(dedup_key)
             added.append(item)
             print(f"  추가 완료: {item['title'][:40]}")
         else:
