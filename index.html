@@ -6,7 +6,7 @@
 <title>에너지 세미나 대시보드</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600&display=swap');
-  :root{--bg:#F7F8FA;--surface:#FFFFFF;--border:#E4E8EF;--text-1:#1A2332;--text-2:#4A5568;--text-3:#8A96A8;--blue:#2D6BE4;--blue-lt:#EBF1FD;--green:#1E8A4C;--green-lt:#E6F5ED;--amber:#B45309;--amber-lt:#FEF3DC;--purple:#6B46C1;--purple-lt:#F0EBFF}
+  :root{--bg:#F7F8FA;--surface:#FFFFFF;--border:#E4E8EF;--text-1:#1A2332;--text-2:#4A5568;--text-3:#8A96A8;--blue:#2D6BE4;--blue-lt:#EBF1FD;--green:#1E8A4C;--green-lt:#E6F5ED;--amber:#B45309;--amber-lt:#FEF3DC;--purple:#6B46C1;--purple-lt:#F0EBFF;--red:#D6336C;--red-lt:#FCE9F0}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text-1);font-size:13px;line-height:1.6}
   .header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;height:50px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
@@ -64,6 +64,7 @@
   .b-high{background:var(--green-lt);color:var(--green)}
   .b-med{background:var(--amber-lt);color:var(--amber)}
   .b-low{background:var(--bg);color:var(--text-3);border:1px solid var(--border)}
+  .b-new{background:var(--red-lt);color:var(--red);font-weight:700;padding:2px 5px}
   .card-list{display:flex;flex-direction:column;gap:7px}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 13px;transition:border-color .15s,box-shadow .15s}
   .card:hover{border-color:#C0CCE0;box-shadow:0 2px 8px rgba(0,0,0,.04)}
@@ -310,6 +311,8 @@ const D7=[
 const BS={일정확정:'b-conf',일정조율중:'b-plan',개최추정:'b-est'};
 const BP={최우선:'b-high',우선:'b-med',참고용:'b-low'};
 const EP={최우선:'ev-high',우선:'ev-med',참고용:'ev-low'};
+const STATUS_ORDER={일정확정:0,일정조율중:1,개최추정:2};
+const PRIO_ORDER={최우선:0,우선:1,참고용:2};
 // 날짜 기준
 const NOW = new Date();
 const THIS_M = NOW.getMonth() + 1;
@@ -324,11 +327,11 @@ const D8=[
   {title:"제12차 전력수급기본계획 전문가위원회 공개토론회",status:"개최추정",prio:"최우선",day:null,date:"2026.08~09 (분기 내 추정)",org:"기후에너지환경부 / 전력정책심의회",venue:"서울 (추후 공지)",cost:"무료",content:"12차 전기본 실무안 논의 현황 / 3대 메가프로젝트 반영 전력수요 재전망 / 재생에너지·원전·ESS 전원믹스 방향 / 연말 최종안 확정 전 의견 수렴",speakers:"기후에너지환경부 전력수급 담당 실장·과장 / 전문가위원회 위원 / 에너지 학계 교수",src:"뉴데일리 2026.07.09 보도 / mcee.go.kr",url:"https://biz.newdaily.co.kr/site/data/html/2026/07/09/2026070900082.html"},
   {title:"ESS·VPP 수익모델 전략 세미나 [세미나허브 / 미래기술교육연구원]",status:"개최추정",prio:"우선",day:null,date:"2026.08 (분기별 추정)",org:"세미나허브 또는 한국미래기술교육연구원",venue:"서울 여의도 FKI타워",cost:"유료 (40~70만원 추정)",content:"ESS 입찰시장 하반기 참여 전략 / VPP·PPA 연계 수익모델 / 배전망 연계형 ESS 운영 실무",speakers:"전력거래소 시장운영처 담당자 / 기후에너지환경부 ESS 담당 과장 (연사 미확정)",src:"seminarhub.co.kr / ekn.kr (과거 분기별 개최 패턴)",url:"https://seminarhub.co.kr"},
   {title:"재생에너지·전력계통 하반기 정책 설명회",status:"개최추정",prio:"최우선",day:null,date:"2026.08 (추정)",org:"기후에너지환경부 / 한국에너지공단",venue:"서울 또는 세종 (추후 공지)",cost:"무료",content:"재생에너지 계약시장 전환 하반기 일정 / 배전망 ESS 사업 선정 결과 및 운영 안내 / 출력제어 완화 정책 현황",speakers:"기후에너지환경부 재생에너지정책과장 / 한국에너지공단 담당자",src:"mcee.go.kr / energy.or.kr (정기 설명회 패턴)",url:"https://www.mcee.go.kr"},
-  {title:"AI 데이터센터 인프라 구축ㆍ운영의 핵심 이슈와 최적화 전략 세미나 -화재리스크/액침냉각/보안핵심/PPA활용/수중데이터센터/구축핵심/화재안전기준-",status:"개최추정",prio:"우선",day:25,date:"2026.08.25",org:"산업교육연구소",venue:"KIEI 세미나실 (서울 구로동) / KIEI Live (온라인 동시 진행)",cost:"0원 (VAT포함)",content:"AI 데이터센터 전력설비 화재리스크 평가기술과 예방·진단사례 / 액침냉각 기술개발 동향과 실증사례 / 소버린 AI 데이터센터 보안 모델과 핵심 기술 / 데이터센터 전력공급 PPA 제도 활용방안 / 탄소저감형 수중데이터센터 실증모델 / AI 데이터센터 구축 핵심 설계요소·쿨링시스템 / 데이터센터 화재안전 기술기준과 예방·진단사례",speakers:"김용권 팀장 ((사)한국화재보험협회) / 최동훈 한국대표 (GRC코리아) / 김창훈 교수 (대구대학교) / 김승희 매니저 (KEI Consulting) / 최영진 선임연구원 (한국해양과학기술원) / 손지수 전무 ((주)한미글로벌) / 권도현 과장 (한국전기안전공사)",src:"산업교육연구소 자동 수집 (2026.08.14, 상세페이지 확인)",url:"https://www.kiei.com/education/schedule_view?page=1&t=schedule_01&esn=1165"},
-  {title:"ESS 대전환을 위한 관련 산업 연계 핵심기술 동향과 대응/성장 전략 세미나 -정책/배터리/전력계통/발전소/주택용/ESSㆍUPS/ESS 탄소감축 평가기술-",status:"개최추정",prio:"우선",day:20,date:"2026.08.20",org:"산업교육연구소",venue:"KIEI 세미나실 (서울 구로동) / KIEI Live (온라인 동시 진행)",cost:"0원 (VAT포함)",content:"국내외 ESS 정책방향과 시장전망·기업 대응전략 / AI 기반 극저온·고출력 배터리 전해액 소재 기술 / 주택용 ESS 최적화 운영전략·비즈니스 모델 / 발전소 연계형 ESS 운영기술 실증사례 / AI 시대 전력계통 안정화 ESS 활용전략 / AI 기반 ESS·UPS 운영 최적화와 데이터센터 전력 대응전략 / ESS 탄소감축 효과 평가기술과 탄소배출권 시장 활용전략",speakers:"배정효 회장 ((사)한국ESS산업진흥회) / 송의환 부사장 ((주)엔켐) / 김성철 대표 ((주)파란에너지) / 박종현 수석 (두산에너빌리티) / 명준용 계통계획팀장 (한국전력거래소) / 임승범 이사 ((주)이온) / 김미성 본부장 (한국화학융합시험연구원)",src:"산업교육연구소 자동 수집 (2026.08.14, 상세페이지 확인)",url:"https://www.kiei.com/education/schedule_view?page=1&t=schedule_01&esn=1162"},
-  {title:"[8.27] 제3차 실무자를 위한 이차전지 핵심소재 및 셀 설계 집중교육 세미나",status:"일정확정",prio:"우선",day:27,date:"2026.08.27 (목) 09:30~17:00",org:"세미나허브",venue:"서울 여의도 FKI타워 컨퍼런스센터 2층 토파즈",cost:"440,000원 (사전등록 ~8/25, 이후 +33,000원)",content:"이차전지 기초·구성·작동원리 / 4대 핵심소재(양극재·음극재·전해질·분리막) / 배터리 화재 메커니즘과 소재 관점 대책 / 차세대 이차전지(나트륨이온·전고체) 기술 동향 / 배터리 설계 원리(용량·전극·셀구조) / 배터리 성능평가 및 임피던스(EIS) 분석",speakers:"안재평 박사 (한국과학기술연구원) / 김희탁 교수 (KAIST)",src:"세미나허브 자동 수집 (2026.08.14, 상세페이지 확인)",url:"https://seminarhub.co.kr/product/item.php?it_id=1774523195&ca_id=10&page=1&sort1=&sort2=&st=ing"},
-  {title:"분산에너지 실현을 위한 가상발전소 기술 세미나",status:"일정확정",prio:"우선",day:19,date:"2026.08.19 (수) 14:00~16:30",org:"한국전기연구원(KERI) / 한국스마트그리드협회",venue:"메디톡스 비즈니스 센터 M1 (서울 강남구 테헤란로 628, 메디톡스빌딩 지하 1층)",cost:"미정",content:"차세대 분산형 전력망 R&D 추진 방향 / 가상발전소 및 마이크로그리드 표준화 동향 / 분산에너지 실현을 위한 가상발전소 기술 / 1:1 기술상담",speakers:"김창선 PD (한국에너지기술평가원) / 강세일 박사 (한국스마트그리드협회) / 변길성 책임연구원 (한국전기연구원)",src:"한국스마트그리드협회 자동 수집 (2026.08.14, 상세페이지 확인)",url:"https://ksga.org/web/Board/7835/detailView.do?pageIndex=1"},
-  {title:"2026 K-기후 에너지환경&수소환원제철 세미나",status:"일정확정",prio:"우선",day:11,date:"2026.08.11 (화) 14:00",org:"신정훈 의원실, 국민에너지전국회의",venue:"의원회관 제7간담회의실(210호)",cost:"미정",content:"",speakers:"미정",src:"국회도서관 세미나 자동 수집 (2026.08.14)",url:"https://ampos.nanet.go.kr:7443/seminarList.do?searchGubun=cal#searchGubun=cal&curPage=1&curMonth=202608&fromDate=2026-08-11&endDate=2026-08-11&sort=asc"}
+  {title:"AI 데이터센터 인프라 구축ㆍ운영의 핵심 이슈와 최적화 전략 세미나 -화재리스크/액침냉각/보안핵심/PPA활용/수중데이터센터/구축핵심/화재안전기준-",status:"개최추정",prio:"우선",day:25,date:"2026.08.25",org:"산업교육연구소",venue:"KIEI 세미나실 (서울 구로동) / KIEI Live (온라인 동시 진행)",cost:"0원 (VAT포함)",content:"AI 데이터센터 전력설비 화재리스크 평가기술과 예방·진단사례 / 액침냉각 기술개발 동향과 실증사례 / 소버린 AI 데이터센터 보안 모델과 핵심 기술 / 데이터센터 전력공급 PPA 제도 활용방안 / 탄소저감형 수중데이터센터 실증모델 / AI 데이터센터 구축 핵심 설계요소·쿨링시스템 / 데이터센터 화재안전 기술기준과 예방·진단사례",speakers:"김용권 팀장 ((사)한국화재보험협회) / 최동훈 한국대표 (GRC코리아) / 김창훈 교수 (대구대학교) / 김승희 매니저 (KEI Consulting) / 최영진 선임연구원 (한국해양과학기술원) / 손지수 전무 ((주)한미글로벌) / 권도현 과장 (한국전기안전공사)",src:"산업교육연구소 자동 수집 (2026.08.14, 상세페이지 확인)",url:"https://www.kiei.com/education/schedule_view?page=1&t=schedule_01&esn=1165",added:"2026.08.14"},
+  {title:"ESS 대전환을 위한 관련 산업 연계 핵심기술 동향과 대응/성장 전략 세미나 -정책/배터리/전력계통/발전소/주택용/ESSㆍUPS/ESS 탄소감축 평가기술-",status:"개최추정",prio:"우선",day:20,date:"2026.08.20",org:"산업교육연구소",venue:"KIEI 세미나실 (서울 구로동) / KIEI Live (온라인 동시 진행)",cost:"0원 (VAT포함)",content:"국내외 ESS 정책방향과 시장전망·기업 대응전략 / AI 기반 극저온·고출력 배터리 전해액 소재 기술 / 주택용 ESS 최적화 운영전략·비즈니스 모델 / 발전소 연계형 ESS 운영기술 실증사례 / AI 시대 전력계통 안정화 ESS 활용전략 / AI 기반 ESS·UPS 운영 최적화와 데이터센터 전력 대응전략 / ESS 탄소감축 효과 평가기술과 탄소배출권 시장 활용전략",speakers:"배정효 회장 ((사)한국ESS산업진흥회) / 송의환 부사장 ((주)엔켐) / 김성철 대표 ((주)파란에너지) / 박종현 수석 (두산에너빌리티) / 명준용 계통계획팀장 (한국전력거래소) / 임승범 이사 ((주)이온) / 김미성 본부장 (한국화학융합시험연구원)",src:"산업교육연구소 자동 수집 (2026.08.14, 상세페이지 확인)",url:"https://www.kiei.com/education/schedule_view?page=1&t=schedule_01&esn=1162",added:"2026.08.14"},
+  {title:"[8.27] 제3차 실무자를 위한 이차전지 핵심소재 및 셀 설계 집중교육 세미나",status:"일정확정",prio:"우선",day:27,date:"2026.08.27 (목) 09:30~17:00",org:"세미나허브",venue:"서울 여의도 FKI타워 컨퍼런스센터 2층 토파즈",cost:"440,000원 (사전등록 ~8/25, 이후 +33,000원)",content:"이차전지 기초·구성·작동원리 / 4대 핵심소재(양극재·음극재·전해질·분리막) / 배터리 화재 메커니즘과 소재 관점 대책 / 차세대 이차전지(나트륨이온·전고체) 기술 동향 / 배터리 설계 원리(용량·전극·셀구조) / 배터리 성능평가 및 임피던스(EIS) 분석",speakers:"안재평 박사 (한국과학기술연구원) / 김희탁 교수 (KAIST)",src:"세미나허브 자동 수집 (2026.08.14, 상세페이지 확인)",url:"https://seminarhub.co.kr/product/item.php?it_id=1774523195&ca_id=10&page=1&sort1=&sort2=&st=ing",added:"2026.08.14"},
+  {title:"분산에너지 실현을 위한 가상발전소 기술 세미나",status:"일정확정",prio:"우선",day:19,date:"2026.08.19 (수) 14:00~16:30",org:"한국전기연구원(KERI) / 한국스마트그리드협회",venue:"메디톡스 비즈니스 센터 M1 (서울 강남구 테헤란로 628, 메디톡스빌딩 지하 1층)",cost:"미정",content:"차세대 분산형 전력망 R&D 추진 방향 / 가상발전소 및 마이크로그리드 표준화 동향 / 분산에너지 실현을 위한 가상발전소 기술 / 1:1 기술상담",speakers:"김창선 PD (한국에너지기술평가원) / 강세일 박사 (한국스마트그리드협회) / 변길성 책임연구원 (한국전기연구원)",src:"한국스마트그리드협회 자동 수집 (2026.08.14, 상세페이지 확인)",url:"https://ksga.org/web/Board/7835/detailView.do?pageIndex=1",added:"2026.08.14"},
+  {title:"2026 K-기후 에너지환경&수소환원제철 세미나",status:"일정확정",prio:"우선",day:11,date:"2026.08.11 (화) 14:00",org:"신정훈 의원실, 국민에너지전국회의",venue:"의원회관 제7간담회의실(210호)",cost:"미정",content:"",speakers:"미정",src:"국회도서관 세미나 자동 수집 (2026.08.14)",url:"https://ampos.nanet.go.kr:7443/seminarList.do?searchGubun=cal#searchGubun=cal&curPage=1&curMonth=202608&fromDate=2026-08-11&endDate=2026-08-11&sort=asc",added:"2026.08.14"}
 ];
 
 
@@ -336,7 +339,7 @@ const D9=[
   {title:"2026 대한민국 에너지대전 + 기후산업국제박람회 (WCE 2026)",status:"일정확정",prio:"최우선",day:16,date:"2026.09.16~18 (수~금)",org:"기후에너지환경부 / 한국에너지공단 / WCE 조직위원회",venue:"부산 벡스코 (BEXCO) 제1·2전시장",cost:"무료 (사전등록) / 컨퍼런스 별도",content:"재생에너지·ESS·수소·미래모빌리티 기술 전시 / AI & 에너지 융합 주제 국제 컨퍼런스 / 글로벌 리더십·에너지AI·기후 3대 서밋 / 국내외 정부·기업·국제기구 참가",speakers:"김성환 장관 (기후에너지환경부) / 국제기구·각국 정부 고위급 인사 / 에너지·기후 분야 글로벌 리더",src:"koreaenergyshow.energy.or.kr / wce.or.kr",url:"https://koreaenergyshow.energy.or.kr/"},
   {title:"제12차 전력수급기본계획 공청회",status:"개최추정",prio:"최우선",day:null,date:"2026.09~10 (추정)",org:"기후에너지환경부 / 전력정책심의회",venue:"서울 또는 세종 (추후 공지)",cost:"무료",content:"12차 전기본 실무안 공개 및 의견 수렴 / 재생에너지·원전·ESS 전원믹스 방향 / 3대 메가프로젝트 반영 전력수요 전망 / 연말 최종 확정 전 공청 절차",speakers:"기후에너지환경부 전력수급 담당 실장 / 전문가위원회 위원 / 에너지 학계 교수",src:"mcee.go.kr (연말 확정 일정 기반 추정)",url:"https://www.mcee.go.kr"},
   {title:"대한전기학회 추계학술대회 (추정)",status:"개최추정",prio:"우선",day:null,date:"2026.09~10 (추정)",org:"대한전기학회 (kiee.or.kr)",venue:"미정 (통상 제주 또는 강원)",cost:"유료 (회원 등록)",content:"전력계통·재생에너지·ESS 최신 연구 발표 / 스마트그리드·AI 에너지 기술 논문 발표 / 학계·산업계 네트워킹",speakers:"대한전기학회 회장 / 에너지·전력 분야 교수·연구원",src:"kiee.or.kr (하계대회 이후 추계 패턴)",url:"https://www.kiee.or.kr"},
-  {title:"에너지 자립ㆍ분산전원 성공을 위한 주민참여ㆍ이익공유 신사업과 상생 전략 세미나 -재생에너지이익공유제/소득모델/신안군사례분석/풍력발전/태양광-",status:"개최추정",prio:"우선",day:3,date:"2026.09.03",org:"산업교육연구소",venue:"KIEI 세미나실 (서울 구로동) / KIEI Live (온라인 동시 진행)",cost:"0원 (VAT포함)",content:"신안군 주민참여형 재생에너지 개별이익공유제 사례분석 / 3대 에너지 소득모델(햇빛·바람·계절소득)과 주민참여 사업개발 전략 / 주민참여형 재생에너지 개발사업의 이익공유와 공동체 복지 / 풍력발전 주민참여형 이익공유제 구축 갈등관리·지역상생 전략 / 주민주도·주민참여 사업의 이슈와 비즈니스 모델 / 영농형 태양광 주민참여·지역상생 모델과 수익공유 전략",speakers:"윤수진 박사 (국토환경연구원) / 윤태환 대표 ((주)루트에너지) / 최승호 명예연구위원 (충북연구원) / 김정훈 상무 ((주)부산해상풍력발전) / 김승희 매니저 (KEI Consulting) / 남재우 사무총장 ((사)한국영농형태양광협회)",src:"산업교육연구소 자동 수집 (2026.08.14, 상세페이지 확인)",url:"https://www.kiei.com/education/schedule_view?page=1&t=schedule_01&esn=1166"},
+  {title:"에너지 자립ㆍ분산전원 성공을 위한 주민참여ㆍ이익공유 신사업과 상생 전략 세미나 -재생에너지이익공유제/소득모델/신안군사례분석/풍력발전/태양광-",status:"개최추정",prio:"우선",day:3,date:"2026.09.03",org:"산업교육연구소",venue:"KIEI 세미나실 (서울 구로동) / KIEI Live (온라인 동시 진행)",cost:"0원 (VAT포함)",content:"신안군 주민참여형 재생에너지 개별이익공유제 사례분석 / 3대 에너지 소득모델(햇빛·바람·계절소득)과 주민참여 사업개발 전략 / 주민참여형 재생에너지 개발사업의 이익공유와 공동체 복지 / 풍력발전 주민참여형 이익공유제 구축 갈등관리·지역상생 전략 / 주민주도·주민참여 사업의 이슈와 비즈니스 모델 / 영농형 태양광 주민참여·지역상생 모델과 수익공유 전략",speakers:"윤수진 박사 (국토환경연구원) / 윤태환 대표 ((주)루트에너지) / 최승호 명예연구위원 (충북연구원) / 김정훈 상무 ((주)부산해상풍력발전) / 김승희 매니저 (KEI Consulting) / 남재우 사무총장 ((사)한국영농형태양광협회)",src:"산업교육연구소 자동 수집 (2026.08.14, 상세페이지 확인)",url:"https://www.kiei.com/education/schedule_view?page=1&t=schedule_01&esn=1166",added:"2026.08.14"},
 ];
 
 const D10=[
@@ -361,7 +364,20 @@ let curM = THIS_M, curY = THIS_Y;
 let fPrio='all', fStatus='all';
 
 function allData(){ return DATA_MAP[curM] || []; }
-function filtered(){ return allData().filter(d=>(fPrio==='all'||d.prio===fPrio)&&(fStatus==='all'||d.status===fStatus)); }
+function filtered(){
+  return allData()
+    .filter(d=>(fPrio==='all'||d.prio===fPrio)&&(fStatus==='all'||d.status===fStatus))
+    .slice()
+    .sort((a,b)=>(STATUS_ORDER[a.status]-STATUS_ORDER[b.status])||(PRIO_ORDER[a.prio]-PRIO_ORDER[b.prio]));
+}
+// 자동 크롤링으로 최근(7일 이내) 추가된 행사인지 여부
+function isNew(d){
+  if(!d.added) return false;
+  const p=d.added.split('.').map(Number);
+  const addedDate=new Date(p[0],p[1]-1,p[2]);
+  const diffDays=(NOW-addedDate)/86400000;
+  return diffDays>=0 && diffDays<=7;
+}
 
 // 6월(시작)부터 다음달까지 탭 생성
 const tabWrap = document.getElementById('month-tabs');
@@ -467,7 +483,7 @@ function renderCards(){
     <div class="card" id="card-${allData().findIndex(x=>x.title===d.title)}">
       <div class="card-top">
         <div class="card-title">${d.title}</div>
-        <div class="card-badges"><span class="badge ${BS[d.status]}">${d.status}</span><span class="badge ${BP[d.prio]}">${d.prio}</span></div>
+        <div class="card-badges">${isNew(d)?'<span class="badge b-new" title="최근 자동 추가됨">N</span>':''}<span class="badge ${BS[d.status]}">${d.status}</span><span class="badge ${BP[d.prio]}">${d.prio}</span></div>
       </div>
       <div class="card-meta">
         <div class="meta-row"><span class="meta-key">일시</span><span class="meta-val">${d.date}</span></div>

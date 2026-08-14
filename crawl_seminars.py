@@ -459,7 +459,8 @@ def add_to_html(item):
         f'content:{esc(content)},'
         f'speakers:{esc(speakers)},'
         f'src:{esc(src_text)},'
-        f'url:{esc_url(item_url)}}}'
+        f'url:{esc_url(item_url)},'
+        f'added:"{today}"}}'
     )
 
     d_var = f"D{month}"
