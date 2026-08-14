@@ -1,8 +1,15 @@
+"""
+crawl_seminars.py
+에너지 관련 세미나 정보를 자동 수집하여 index.html에 추가합니다.
+매주 월요일 10:00 KST 자동 실행
+"""
+
 import os
 import re
 import base64
 import json
 import requests
+import html as htmllib
 from datetime import datetime
 
 GH_TOKEN   = os.environ["GITHUB_TOKEN"]
@@ -39,22 +46,30 @@ def has_keyword(text):
     return has_event and has_topic
 
 
+def normalize_text(s: str) -> str:
+    """HTML 엔티티 디코딩, 마크다운 기호·보이지 않는 문자 제거, 공백 정리.
+
+    크롤링 원문에 남아있는 &amp; 같은 HTML 엔티티나 zero-width space 등이
+    index.html에 그대로 삽입되면 표시가 깨지거나(엔티티) 삽입되는 JS 문자열
+    구문이 손상될 수 있어(제어문자) 여기서 한 번에 정리한다.
+    """
+    s = htmllib.unescape(s or "")
+    s = re.sub(r"[\u200b-\u200f\u202a-\u202e\u00a0\u3000\ufeff]", " ", s)
+    s = re.sub(r"<[^>]+>", "", s)        # 남은 HTML 태그 제거
+    s = re.sub(r"[*_`#>|]+", "", s)      # 마크다운 강조/표 기호 제거
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
 def esc(s):
-    if not s:
-        return ""
-    s = s.replace("\\", "\\\\")
-    s = s.replace('"', '\\"')
-    s = s.replace("\n", " ")
-    s = s.replace("\r", "")
-    s = s.replace("\t", " ")
-    s = re.sub(r"\*+", "", s)
-    s = re.sub(r"#+\s*", "", s)
-    s = re.sub(r"\[([^\]]*)\]\([^\)]*\)", r"\1", s)
-    s = re.sub(r"`+", "", s)
-    s = re.sub(r"_{2,}", "", s)
-    s = re.sub(r"<[^>]+>", "", s)
-    s = re.sub(r"\s+", " ", s)
-    return s.strip()
+    # json.dumps로 감싸면 따옴표/역슬래시/제어문자 등 어떤 값이 와도
+    # 항상 유효한 JS 문자열 리터럴이 되어, index.html 삽입 시 구문이 깨지지 않는다.
+    return json.dumps(normalize_text(s), ensure_ascii=False)
+
+
+def esc_url(s):
+    # URL은 '#'(앵커) 등을 그대로 보존해야 하므로 마크다운 기호 제거는 건너뛴다.
+    return json.dumps(htmllib.unescape(s or "").strip(), ensure_ascii=False)
 
 
 def clean_url(url):
@@ -126,8 +141,7 @@ def extract_items_from_html(html, source_name, source_url):
     items = []
     pattern = r'<a[^>]*href=["\']([^"\']*)["\'][^>]*>([^<]{10,100})</a>'
     for match in re.finditer(pattern, html):
-        href, text = match.group(1), match.group(2).strip()
-        text = re.sub(r"\s+", " ", text)
+        href, text = match.group(1), normalize_text(match.group(2))
         if has_keyword(text) and len(text) > 10:
             full_url = (
                 href
@@ -158,8 +172,12 @@ def crawl_with_firecrawl(url, source_name):
 
         markdown = r.json().get("data", {}).get("markdown", "")
         items = []
-        for line in markdown.splitlines():
-            line = line.strip()
+        for raw_line in markdown.splitlines():
+            line = normalize_text(raw_line)
+            if not line:
+                continue
+            # 마크다운 링크: [텍스트](url) — normalize_text는 대괄호를 건드리지 않으므로
+            # 정리된 line에 대해 그대로 매칭 가능
             m = re.search(r"\[([^\]]{10,100})\]\((https?://[^\)]+)\)", line)
             if m:
                 text, link = m.group(1).strip(), m.group(2)
@@ -183,20 +201,22 @@ def add_to_html(item):
     month = now.month
     today = now.strftime("%Y.%m.%d")
     item_url = clean_url(item.get("url", ""))
+    source_name = item.get("source", "")
+    src_text = f"{source_name} — 자동 수집 ({today})"
 
     new_entry = (
-        f'  {{title:"{esc(item["title"])}",'
+        f'  {{title:{esc(item.get("title", ""))},'
         f'status:"개최추정",'
         f'prio:"우선",'
         f'day:null,'
         f'date:"{now.year}.{month:02d} (크롤링 수집)",'
-        f'org:"{esc(item["source"])}",'
+        f'org:{esc(source_name)},'
         f'venue:"미정",'
         f'cost:"미정",'
         f'content:"",'
         f'speakers:"미정",'
-        f'src:"{esc(item["source"])} 자동 수집 ({today})",'
-        f'url:"{esc(item_url)}"}}'
+        f'src:{esc(src_text)},'
+        f'url:{esc_url(item_url)}}}'
     )
 
     d_var = f"D{month}"
@@ -218,13 +238,49 @@ def add_to_html(item):
             html,
         )
 
+    # 업데이트 날짜 갱신 (대시보드 상단에 실제 데이터 갱신일 표시)
+    html = update_last_updated(html, today)
+
     ok = gh_put_file(
         "index.html",
         html,
         sha,
-        f"[크롤러] {month}월 행사 추가: {item['title'][:30]}",
+        f"[크롤러] {month}월 행사 추가: {item.get('title', '')[:30]}",
     )
     return ok, "" if ok else "GitHub 업데이트 실패"
+
+
+def update_last_updated(html, today):
+    if re.search(r'const LAST_UPDATED="[^"]*";', html):
+        return re.sub(
+            r'const LAST_UPDATED="[^"]*";',
+            f'const LAST_UPDATED="{today}";',
+            html,
+        )
+    # LAST_UPDATED 선언이 없으면 새로 추가 (하위 호환)
+    return re.sub(
+        r"(const DATA_MAP\s*=)",
+        f'const LAST_UPDATED="{today}";\n\\1',
+        html,
+        count=1,
+    )
+
+
+def count_month_stats(html, month):
+    """index.html의 D{month} 배열을 파싱해 현재 누적 현황 집계"""
+    match = re.search(rf"const D{month}=\[([\s\S]*?)\];", html)
+    if not match:
+        return {"total": 0, "conf": 0, "plan": 0, "est": 0, "high": 0}
+    body = match.group(1)
+    statuses = re.findall(r'status:"([^"]*)"', body)
+    prios = re.findall(r'prio:"([^"]*)"', body)
+    return {
+        "total": len(statuses),
+        "conf": statuses.count("일정확정"),
+        "plan": statuses.count("일정조율중"),
+        "est": statuses.count("개최추정"),
+        "high": prios.count("최우선"),
+    }
 
 
 def send_telegram(text):
@@ -288,16 +344,6 @@ def main():
 
     print(f"\n신규 항목: {len(new_items)}개")
 
-    if not new_items:
-        send_telegram(
-            f"[에너지 세미나 주간 업데이트]\n"
-            f"업데이트: {datetime.now().strftime('%Y.%m.%d')}\n\n"
-            f"이번 주 신규 감지 행사 없음\n\n"
-            f"대시보드: {DASHBOARD}"
-        )
-        print("신규 항목 없음")
-        return
-
     added = []
     for item in new_items:
         ok, err = add_to_html(item)
@@ -311,21 +357,33 @@ def main():
     if added:
         save_processed(processed, proc_sha)
 
+    # 최신 index.html 기준으로 이번 달 누적 현황 집계 (하드코딩 없이 실데이터 기반)
+    now = datetime.now()
+    html, _ = gh_get_file("index.html")
+    stats = count_month_stats(html, now.month)
+
+    week = (now.day - 1) // 7 + 1
     lines = [
-        "[에너지 세미나 주간 업데이트]",
-        f"업데이트: {datetime.now().strftime('%Y.%m.%d')}",
+        f"[에너지 세미나 주간 업데이트 | {now.month}월 {week}주차]",
+        f"업데이트: {now.strftime('%Y.%m.%d')}",
+        "",
+        f"이번 달 누적 현황: 전체 {stats['total']}건 | "
+        f"확정 {stats['conf']} | 조율중 {stats['plan']} | "
+        f"추정 {stats['est']} | 최우선 {stats['high']}",
         "",
     ]
     if added:
-        lines.append(f"신규 감지 행사 {len(added)}건")
-        lines.append("-" * 28)
+        lines.append(f"-- 이번 주 신규 감지 행사 {len(added)}건 --")
         for i, item in enumerate(added[:5], 1):
             lines.append(f"{i}. {item['title'][:40]}")
             lines.append(f"   출처: {item['source']}")
             lines.append("")
         if len(added) > 5:
-            lines.append(f"외 {len(added)-5}건 추가 대시보드에서 확인")
+            lines.append(f"외 {len(added)-5}건 — 대시보드에서 확인")
             lines.append("")
+    else:
+        lines.append("-- 이번 주 신규 감지 행사 없음 --")
+        lines.append("")
     lines += [
         "=" * 28,
         "자동 수집 데이터는 반드시 직접 확인 후 참석 결정하세요.",
