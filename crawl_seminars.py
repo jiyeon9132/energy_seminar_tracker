@@ -11,6 +11,7 @@ import json
 import requests
 import html as htmllib
 from datetime import datetime
+from urllib.parse import urljoin
 
 GH_TOKEN   = os.environ["GITHUB_TOKEN"]
 REPO       = os.environ["GITHUB_REPO"]
@@ -139,15 +140,15 @@ def crawl_with_requests(url):
 
 def extract_items_from_html(html, source_name, source_url):
     items = []
-    pattern = r'<a[^>]*href=["\']([^"\']*)["\'][^>]*>([^<]{10,100})</a>'
-    for match in re.finditer(pattern, html):
-        href, text = match.group(1), normalize_text(match.group(2))
+    # 앵커 안에 <p>제목</p>처럼 한 겹 감싸진 카드형 목록도 잡을 수 있도록
+    # </a> 직전까지는 중첩 태그를 허용하고, normalize_text가 태그를 벗겨낸다.
+    pattern = r'<a[^>]*href=["\']([^"\']*)["\'][^>]*>((?:(?!</a>).){10,300})</a>'
+    for match in re.finditer(pattern, html, re.DOTALL):
+        # href의 &amp; 등 HTML 엔티티를 여기서 바로 풀어야, 이후 상세페이지
+        # 크롤링(fetch_event_detail)에 온전한 URL이 전달된다.
+        href, text = htmllib.unescape(match.group(1)), normalize_text(match.group(2))
         if has_keyword(text) and len(text) > 10:
-            full_url = (
-                href
-                if href.startswith("http")
-                else source_url.rstrip("/") + "/" + href.lstrip("/")
-            )
+            full_url = href if href.startswith("http") else urljoin(source_url, href)
             items.append({"title": text, "url": full_url, "source": source_name})
     return items
 
@@ -420,6 +421,7 @@ SITES_REQUESTS = [
     ("한국에너지공단",   "https://www.energy.or.kr/web/kem_home_new/notice.asp"),
     ("한국전력거래소",   "https://www.kpx.or.kr/board.es?mid=a10301000000&bid=0003"),
     ("한국전력공사",     "https://home.kepco.co.kr/kepco/PR/A/htmlView/PREAAHP00202.do"),
+    ("세미나허브",       "https://seminarhub.co.kr/product/list.php?st=ing"),
 ]
 
 SITES_FIRECRAWL = [
