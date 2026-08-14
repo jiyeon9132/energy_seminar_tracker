@@ -10,7 +10,7 @@ import base64
 import json
 import requests
 import html as htmllib
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urljoin
 
 GH_TOKEN   = os.environ["GITHUB_TOKEN"]
@@ -168,6 +168,107 @@ def extract_ksga_events(html, source_name):
         if has_keyword(text) and len(text) > 10:
             url = f"https://ksga.org/web/Board/{bn_id}/detailView.do?pageIndex=1"
             items.append({"title": text, "url": url, "source": source_name})
+    return items
+
+
+NANET_ROW = re.compile(
+    r'<tr>\s*<td>\s*(?P<dt>[^<]+?)\s*</td>\s*'
+    r'<td class="text-left">(?P<body>.*?)</td>\s*<td>.*?</td>\s*</tr>',
+    re.DOTALL,
+)
+NANET_WEEKDAY_RE = re.compile(r"(\d{4})년\s*(\d{2})월\s*(\d{2})일\s*\(([^)]+)\)\s*(\d{2}:\d{2})")
+
+
+def crawl_nanet_assembly(days_ahead=45):
+    """국회도서관 세미나정보(ampos.nanet.go.kr) 크롤링.
+
+    화면상 URL(seminarList.do)은 달력 SPA 껍데기라 그대로 긁으면 실제 목록이
+    비어 있다. 화면이 내부적으로 호출하는 AJAX 엔드포인트
+    (seminarScheduleListInner.do)를 날짜 범위로 직접 조회하면, 일시·제목·
+    장소·주최가 이미 구조화된 텍스트로 들어있어 상세페이지를 따로 열 필요가
+    없다.
+    """
+    base = "https://ampos.nanet.go.kr:7443/seminarScheduleListInner.do"
+    source_name = "국회도서관 세미나"
+    today = datetime.now().date()
+    horizon = today + timedelta(days=days_ahead)
+
+    items = []
+    cur_month_start = today.replace(day=1)
+    while cur_month_start <= horizon:
+        next_month_start = (cur_month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        month_start = max(cur_month_start, today)
+        month_end = min(next_month_start - timedelta(days=1), horizon)
+        month_str = cur_month_start.strftime("%Y%m")
+
+        page = 1
+        while page <= 20:  # 안전장치: 월당 최대 20페이지(200건)
+            params = {
+                "searchGubun": "cal",
+                "curPage": page,
+                "curMonth": month_str,
+                "fileNo": "",
+                "searchType": "",
+                "queryText": "",
+                "fromDate": month_start.isoformat(),
+                "endDate": month_end.isoformat(),
+                "sort": "asc",
+            }
+            try:
+                r = requests.get(
+                    base, params=params, timeout=10,
+                    headers={
+                        "User-Agent": "Mozilla/5.0",
+                        "Referer": "https://ampos.nanet.go.kr:7443/seminarList.do",
+                    },
+                )
+                r.encoding = "utf-8"
+                html = r.text
+            except Exception as e:
+                print(f"  국회도서관 세미나 요청 실패 ({month_str} p{page}): {e}")
+                break
+
+            rows = NANET_ROW.findall(html)
+            if not rows:
+                break
+
+            for dt_text, body in rows:
+                m = NANET_WEEKDAY_RE.search(dt_text)
+                if not m:
+                    continue
+                year, month, day, weekday, time_str = m.groups()
+
+                title_m = re.search(r"<p[^>]*>(.*?)</p>", body, re.DOTALL)
+                title = normalize_text(title_m.group(1)) if title_m else ""
+                if not title or not any(kw in title for kw in TOPIC_KEYWORDS):
+                    continue
+
+                place_m = re.search(r"<span>장소</span>(.*?)</li>", body, re.DOTALL)
+                venue = normalize_text(place_m.group(1)) if place_m else ""
+                host_m = re.search(r"<span>주최</span>(.*?)</li>", body, re.DOTALL)
+                host = normalize_text(host_m.group(1)) if host_m else ""
+
+                items.append({
+                    "title": title,
+                    "url": (
+                        "https://ampos.nanet.go.kr:7443/seminarList.do?searchGubun=cal"
+                        f"#searchGubun=cal&curPage=1&curMonth={year}{month}"
+                        f"&fromDate={year}-{month}-{day}&endDate={year}-{month}-{day}&sort=asc"
+                    ),
+                    "source": source_name,
+                    "org": host or source_name,
+                    "venue": venue or None,
+                    "date": f"{year}.{month}.{day} ({weekday}) {time_str}",
+                    "day": int(day),
+                    "month": int(month),
+                })
+
+            if len(rows) < 10:
+                break
+            page += 1
+
+        cur_month_start = next_month_start
+
     return items
 
 
@@ -341,6 +442,9 @@ def add_to_html(item):
     cost = item.get("cost") or "미정"
     speakers = item.get("speakers") or "미정"
     content = item.get("content") or ""
+    # 목록 단계에서 실제 주최 기관(예: 국회 의원실)을 이미 알아낸 경우 그걸
+    # 쓰고, 없으면 출처 사이트명으로 대체한다.
+    org_text = item.get("org") or source_name
 
     new_entry = (
         f'  {{title:{esc(item.get("title", ""))},'
@@ -348,7 +452,7 @@ def add_to_html(item):
         f'prio:"우선",'
         f'day:{day_js},'
         f'date:{esc(date_str)},'
-        f'org:{esc(source_name)},'
+        f'org:{esc(org_text)},'
         f'venue:{esc(venue)},'
         f'cost:{esc(cost)},'
         f'content:{esc(content)},'
@@ -447,7 +551,6 @@ SITES_REQUESTS = [
 SITES_FIRECRAWL = [
     ("에너지전환포럼",    "https://www.energytransitionkorea.org/event"),
     ("산업교육연구소",    "https://www.kiei.com/education/schedule?t=schedule_01"),
-    ("국회도서관 세미나", "https://ampos.nanet.go.kr/seminarList.do"),
     ("KHARN",             "https://www.kharn.kr/news/section.html?sec_no=3"),
     ("전기신문",          "https://www.electimes.com/news/articleList.html?sc_section_code=S1N4"),
 ]
@@ -455,6 +558,9 @@ SITES_FIRECRAWL = [
 # ksga.org(한국스마트그리드협회)는 목록 링크가 JS onclick 기반이라
 # 전용 파서(extract_ksga_events)로 별도 처리한다.
 SITE_KSGA = ("한국스마트그리드협회", "https://ksga.org/web/notice/event_out.do")
+
+# 국회도서관 세미나정보(ampos.nanet.go.kr)는 겉보기 URL이 달력 SPA라
+# crawl_nanet_assembly()가 내부 AJAX 엔드포인트를 직접 조회한다.
 
 
 def main():
@@ -480,6 +586,14 @@ def main():
         print(f"  {len(ksga_items)}개 항목 감지")
         all_items.extend(ksga_items)
 
+    print("크롤링 중: 국회도서관 세미나")
+    try:
+        nanet_items = crawl_nanet_assembly()
+        print(f"  {len(nanet_items)}개 항목 감지")
+        all_items.extend(nanet_items)
+    except Exception as e:
+        print(f"  국회도서관 세미나 크롤링 예외: {e}")
+
     for name, url in SITES_FIRECRAWL:
         print(f"크롤링 중 (Firecrawl): {name}")
         items = crawl_with_firecrawl(url, name)
@@ -501,7 +615,9 @@ def main():
         # 중복 방지 키는 상세 페이지 보강 전(원래 목록에서 긁은) 제목 기준으로
         # 고정해야 다음 주 재크롤링 시에도 같은 키가 나와 중복 등록을 막을 수 있다.
         dedup_key = item["title"][:50]
-        if FC_KEY:
+        # 국회도서관처럼 목록 단계에서 이미 실제 날짜를 확보한 항목은
+        # 상세페이지를 또 열 필요가 없다(불필요한 Firecrawl 호출 방지).
+        if FC_KEY and "date" not in item:
             detail = fetch_event_detail(item.get("url", ""))
             if detail:
                 item.update(detail)
