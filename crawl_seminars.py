@@ -225,6 +225,8 @@ def add_to_html(item):
 
         def replacer(m):
             existing = m.group(2).rstrip()
+            if existing.endswith(","):
+                existing = existing[:-1]
             sep = ",\n" if existing.strip() else "\n"
             return f"{m.group(1)}{existing}{sep}{new_entry}\n{m.group(3)}"
 
