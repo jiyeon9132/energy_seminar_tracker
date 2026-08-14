@@ -2,11 +2,6 @@
 crawl_seminars.py
 에너지 관련 세미나 정보를 자동 수집하여 index.html에 추가합니다.
 매주 월요일 10:00 KST 자동 실행
-
-크롤링 대상:
-  requests: mcee.go.kr, energy.or.kr, kpx.or.kr, kepco.co.kr, motie.go.kr
-  Firecrawl: energytransitionkorea.org, ksg.or.kr, kiet.co.kr,
-             ampos.nanet.go.kr, energyfuture.kr
 """
 
 import os
@@ -26,20 +21,18 @@ DASHBOARD  = os.environ.get("DASHBOARD_URL", "https://energy-seminar.vercel.app"
 PROCESSED_FILE = "crawled_items.json"
 
 # ── 키워드 필터 ─────────────────────────────────────────────
-# 행사 유형 (하나 이상 포함되어야 함)
 EVENT_TYPES = [
     "세미나", "포럼", "토론회", "공청회",
     "컨퍼런스", "설명회", "간담회",
 ]
 
-# 주제 키워드 (하나 이상 포함되어야 함)
 TOPIC_KEYWORDS = [
     "재생에너지", "태양광", "풍력", "RE100",
-    "ESS", "에너지저장",
+    "ESS", "에너지저장", "BESS",
     "전기차", "충전", "V2G",
     "전력망", "계통", "HVDC", "송전", "배전",
-    "수소", "연료전지",
-    "배터리", "이차전지",
+    "수소", "연료전지", "수전해",
+    "배터리", "이차전지", "전고체",
     "CCUS", "탄소포집",
     "VPP", "가상발전소",
     "분산에너지", "분산전원", "마이크로그리드",
@@ -47,13 +40,11 @@ TOPIC_KEYWORDS = [
 ]
 
 def has_keyword(text: str) -> bool:
-    """행사 유형 AND 주제 키워드 둘 다 포함되어야 True"""
-    has_event  = any(kw in text for kw in EVENT_TYPES)
-    has_topic  = any(kw in text for kw in TOPIC_KEYWORDS)
+    has_event = any(kw in text for kw in EVENT_TYPES)
+    has_topic = any(kw in text for kw in TOPIC_KEYWORDS)
     return has_event and has_topic
 
 def is_future(text: str) -> bool:
-    """2026년 이후 날짜가 포함되어 있는지 확인"""
     now = datetime.now()
     year = now.year
     months_ahead = [f"{year}.{m:02d}" for m in range(now.month, 13)]
@@ -101,7 +92,7 @@ def save_processed(processed, sha):
 
 
 # ── requests 크롤링 ──────────────────────────────────────────
-def crawl_with_requests(url, selector_hint=""):
+def crawl_with_requests(url):
     try:
         r = requests.get(url, timeout=10,
                          headers={"User-Agent": "Mozilla/5.0"})
@@ -112,9 +103,7 @@ def crawl_with_requests(url, selector_hint=""):
         return ""
 
 def extract_items_from_html(html, source_name, source_url):
-    """HTML에서 제목+링크 추출 (간단 파싱)"""
     items = []
-    # <a> 태그에서 텍스트 추출
     pattern = r'<a[^>]*href=["\']([^"\']*)["\'][^>]*>([^<]{10,100})</a>'
     for match in re.finditer(pattern, html):
         href, text = match.group(1), match.group(2).strip()
@@ -148,19 +137,16 @@ def crawl_with_firecrawl(url, source_name):
             print(f"  Firecrawl 실패 ({source_name}): {r.status_code}")
             return []
 
-        data = r.json()
-        markdown = data.get("data", {}).get("markdown", "")
-
+        markdown = r.json().get("data", {}).get("markdown", "")
         items = []
+
         for line in markdown.splitlines():
             line = line.strip()
-            # 마크다운 링크: [텍스트](url)
             m = re.search(r'\[([^\]]{10,100})\]\((https?://[^\)]+)\)', line)
             if m:
                 text, link = m.group(1).strip(), m.group(2)
                 if has_keyword(text):
                     items.append({"title": text, "url": link, "source": source_name})
-            # 일반 텍스트 줄
             elif has_keyword(line) and len(line) > 15:
                 items.append({"title": line[:80], "url": url, "source": source_name})
         return items
@@ -168,6 +154,23 @@ def crawl_with_firecrawl(url, source_name):
     except Exception as e:
         print(f"  Firecrawl 예외 ({source_name}): {e}")
         return []
+
+
+# ── URL 정제 ─────────────────────────────────────────────────
+def clean_url(url):
+    if not url:
+        return ""
+    for sep in ['/menu.es', '/main.es', '/sub.es']:
+        if sep in url:
+            url = url.split(sep)[0]
+    if '?' in url:
+        base, query = url.split('?', 1)
+        query = query.split('/http')[0].split('//')[0]
+        url = f"{base}?{query}"
+    return url.strip()
+
+def esc(s):
+    return (s or "").replace('\\', '\\\\').replace('"', '\\"').replace('\n', ' ').strip()
 
 
 # ── index.html에 신규 행사 추가 ──────────────────────────────
@@ -180,26 +183,7 @@ def add_to_html(item):
     now = datetime.now()
     month = now.month
     today = now.strftime("%Y.%m.%d")
-
-    def esc(s):
-        return (s or "").replace('\\', '\\\\').replace('"', '\\"').replace('\n', ' ').replace('\r', '').strip()
-
-    def clean_url(url):
-        if not url:
-            return ""
-        # 슬래시로 연결된 중복 URL 제거
-        for sep in ['/menu.es', '/main.es', '/sub.es']:
-            if sep in url:
-                url = url.split(sep)[0]
-        # 쿼리스트링에 또 다른 URL 경로가 섞인 경우 제거
-        if '?' in url:
-            base, query = url.split('?', 1)
-            query = query.split('/http')[0]
-            query = query.split('//')[0]
-            url = f"{base}?{query}"
-        return url.strip()
-
-    clean_item_url = clean_url(item.get("url", ""))
+    item_url = clean_url(item.get("url", ""))
 
     new_entry = (
         f'  {{title:"{esc(item["title"])}",'
@@ -213,7 +197,7 @@ def add_to_html(item):
         f'content:"",'
         f'speakers:"미정",'
         f'src:"{esc(item["source"])} — 자동 수집 ({today})",'
-        f'url:"{esc(clean_item_url)}"}}'
+        f'url:"{esc(item_url)}"}}'
     )
 
     d_var = f"D{month}"
@@ -233,38 +217,9 @@ def add_to_html(item):
             html,
         )
 
-    # 업데이트 날짜 갱신 (대시보드 상단에 실제 데이터 갱신일 표시)
-    html = update_last_updated(html, today)
-
     ok = gh_put_file("index.html", html, sha,
                      f"[크롤러] {month}월 행사 추가: {item['title'][:30]}")
     return ok, "" if ok else "GitHub 업데이트 실패"
-
-
-def update_last_updated(html, today):
-    if re.search(r'const LAST_UPDATED="[^"]*";', html):
-        return re.sub(r'const LAST_UPDATED="[^"]*";',
-                       f'const LAST_UPDATED="{today}";', html)
-    # LAST_UPDATED 선언이 없으면 새로 추가 (하위 호환)
-    return re.sub(r"(const DATA_MAP\s*=)",
-                  f'const LAST_UPDATED="{today}";\n\\1', html, count=1)
-
-
-def count_month_stats(html, month):
-    """index.html의 D{month} 배열을 파싱해 현재 누적 현황 집계"""
-    match = re.search(rf"const D{month}=\[([\s\S]*?)\];", html)
-    if not match:
-        return {"total": 0, "conf": 0, "plan": 0, "est": 0, "high": 0}
-    body = match.group(1)
-    statuses = re.findall(r'status:"([^"]*)"', body)
-    prios = re.findall(r'prio:"([^"]*)"', body)
-    return {
-        "total": len(statuses),
-        "conf": statuses.count("일정확정"),
-        "plan": statuses.count("일정조율중"),
-        "est": statuses.count("개최추정"),
-        "high": prios.count("최우선"),
-    }
 
 
 # ── 텔레그램 발송 ────────────────────────────────────────────
@@ -309,7 +264,6 @@ def main():
 
     all_items = []
 
-    # requests 크롤링
     for name, url in SITES_REQUESTS:
         print(f"크롤링 중: {name}")
         html = crawl_with_requests(url)
@@ -318,14 +272,12 @@ def main():
             print(f"  {len(items)}개 항목 감지")
             all_items.extend(items)
 
-    # Firecrawl 크롤링
     for name, url in SITES_FIRECRAWL:
         print(f"크롤링 중 (Firecrawl): {name}")
         items = crawl_with_firecrawl(url, name)
         print(f"  {len(items)}개 항목 감지")
         all_items.extend(items)
 
-    # 중복 제거 및 미처리 항목 필터
     new_items = []
     seen_titles = set()
     for item in all_items:
@@ -336,7 +288,16 @@ def main():
 
     print(f"\n신규 항목: {len(new_items)}개")
 
-    # index.html에 추가 (신규 항목이 있을 때만)
+    if not new_items:
+        send_telegram(
+            f"[에너지 세미나 주간 업데이트]\n"
+            f"업데이트: {datetime.now().strftime('%Y.%m.%d')}\n\n"
+            f"이번 주 신규 감지 행사 없음\n\n"
+            f"대시보드: {DASHBOARD}"
+        )
+        print("신규 항목 없음 — 텔레그램 알림 발송 완료")
+        return
+
     added = []
     for item in new_items:
         ok, err = add_to_html(item)
@@ -350,33 +311,21 @@ def main():
     if added:
         save_processed(processed, proc_sha)
 
-    # 최신 index.html 기준으로 이번 달 누적 현황 집계 (하드코딩 없이 실데이터 기반)
-    now = datetime.now()
-    html, _ = gh_get_file("index.html")
-    stats = count_month_stats(html, now.month)
-
-    week = (now.day - 1) // 7 + 1
     lines = [
-        f"[에너지 세미나 주간 업데이트 | {now.month}월 {week}주차]",
-        f"업데이트: {now.strftime('%Y.%m.%d')}",
-        "",
-        f"이번 달 누적 현황: 전체 {stats['total']}건 | "
-        f"확정 {stats['conf']} | 조율중 {stats['plan']} | "
-        f"추정 {stats['est']} | 최우선 {stats['high']}",
+        f"[에너지 세미나 주간 업데이트]",
+        f"업데이트: {datetime.now().strftime('%Y.%m.%d')}",
         "",
     ]
     if added:
-        lines.append(f"-- 이번 주 신규 감지 행사 {len(added)}건 --")
-        for i, item in enumerate(added[:5], 1):  # 최대 5건만 표시
+        lines.append(f"신규 감지 행사 {len(added)}건")
+        lines.append("-" * 28)
+        for i, item in enumerate(added[:5], 1):
             lines.append(f"{i}. {item['title'][:40]}")
             lines.append(f"   출처: {item['source']}")
             lines.append("")
         if len(added) > 5:
-            lines.append(f"외 {len(added)-5}건 — 대시보드에서 확인")
+            lines.append(f"외 {len(added)-5}건 추가 — 대시보드에서 확인")
             lines.append("")
-    else:
-        lines.append("-- 이번 주 신규 감지 행사 없음 --")
-        lines.append("")
     lines += [
         "=" * 28,
         "자동 수집 데이터는 반드시 직접 확인 후 참석 결정하세요.",
