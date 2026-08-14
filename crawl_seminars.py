@@ -294,14 +294,17 @@ def crawl_with_firecrawl(url, source_name):
         markdown = r.json().get("data", {}).get("markdown", "")
         items = []
         for raw_line in markdown.splitlines():
-            line = normalize_text(raw_line)
-            if not line:
+            if not raw_line.strip():
                 continue
-            # 마크다운 링크: [텍스트](url) — normalize_text는 대괄호를 건드리지 않으므로
-            # 정리된 line에 대해 그대로 매칭 가능
-            m = re.search(r"\[([^\]]{10,100})\]\((https?://[^\)]+)\)", line)
+            # 마크다운 링크: [텍스트](url) — 반드시 원본 줄에서 매칭해야 한다.
+            # normalize_text는 마크다운 강조기호(_)를 지우는데, 이걸 매칭 전에
+            # 줄 전체에 적용하면 URL 안의 밑줄(예: schedule_view)까지 지워져
+            # schedule_view -> scheduleview 처럼 링크 자체가 깨진다(실제로 발생한
+            # 버그: KIEI 상세페이지 URL이 깨져 404가 되고, 그 404 페이지 제목이
+            # 세미나 제목으로 잘못 들어간 적이 있었다).
+            m = re.search(r"\[([^\]]{10,100})\]\((https?://[^\)]+)\)", raw_line)
             if m:
-                text, link = m.group(1).strip(), m.group(2)
+                text, link = normalize_text(m.group(1)), m.group(2)
                 if has_keyword(text):
                     items.append({"title": text, "url": link, "source": source_name})
             # 링크 없이 목록 텍스트만으로 항목을 만들면(과거 elif 분기) 표 형태로
@@ -344,6 +347,11 @@ def fetch_event_detail(url):
 
     detail = {}
 
+    # 링크가 깨졌거나 만료되어 에러 페이지가 스크랩된 경우, 그 페이지의
+    # 헤딩("404 Page Not Found" 등)을 세미나 제목으로 오인하면 안 된다.
+    if re.search(r"404\s*(?:page\s*)?not\s*found|페이지를\s*찾을\s*수\s*없|존재하지\s*않는\s*페이지", md, re.IGNORECASE):
+        return None
+
     # 제목: 첫 markdown 헤딩 또는 굵은 글씨 첫 줄
     m = re.search(r"^#{1,3}\s+(.{5,120})$", md, re.MULTILINE)
     if not m:
@@ -353,8 +361,13 @@ def fetch_event_detail(url):
         if len(title) > 8:
             detail["title"] = title
 
-    # 날짜: YYYY-MM-DD 또는 YYYY.MM.DD (범위 포함)
+    # 날짜: "일시/행사일/개최일/교육일정" 같은 라벨 근처의 날짜만 신뢰한다.
+    # 라벨 없이 페이지 전체에서 아무 날짜나 잡으면, "작성일/등록일"처럼
+    # 게시글이 올라온 날짜(행사일과 무관)를 행사일로 착각하는 문제가 있었다
+    # (ksga.org 게시판에서 실제로 발생: 작성일을 행사일로 오인해 엉뚱한 달에
+    # 중복 항목이 들어감).
     m = re.search(
+        r"(?:일시|행사일|개최일|교육일정|행사일정)[^0-9\n]{0,20}"
         r"(\d{4})[.\-](\d{2})[.\-](\d{2})(?:\s*[~\-]\s*(\d{4})[.\-](\d{2})[.\-](\d{2}))?",
         md,
     )
