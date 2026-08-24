@@ -352,14 +352,23 @@ def fetch_event_detail(url):
     if re.search(r"404\s*(?:page\s*)?not\s*found|페이지를\s*찾을\s*수\s*없|존재하지\s*않는\s*페이지", md, re.IGNORECASE):
         return None
 
-    # 제목: 첫 markdown 헤딩 또는 굵은 글씨 첫 줄
-    m = re.search(r"^#{1,3}\s+(.{5,120})$", md, re.MULTILINE)
-    if not m:
-        m = re.search(r"\*\*(.{5,120})\*\*", md)
+    # 제목: "강좌명" 같은 라벨이 있으면 그걸 최우선으로 신뢰한다(KIEI 등에서
+    # 실제 검증됨). 라벨이 없을 때만 markdown 헤딩/굵은 글씨로 대체하되,
+    # 헤딩 자체가 "![대문 이미지](url)"처럼 이미지로만 되어 있으면(장식용
+    # 배너를 헤딩으로 오인하는 사례가 실제 있었다) 제목으로 쓰지 않는다.
+    m = re.search(r"강\s*좌\s*명[\s:*|]*\n?\s*([^\n|\t]{5,150})", md)
     if m:
         title = normalize_text(m.group(1))
         if len(title) > 8:
             detail["title"] = title
+    if "title" not in detail:
+        m = re.search(r"^#{1,3}\s+(.{5,120})$", md, re.MULTILINE)
+        if not m:
+            m = re.search(r"\*\*(.{5,120})\*\*", md)
+        if m and not re.match(r"^\s*!\[", m.group(1)):
+            title = normalize_text(m.group(1))
+            if len(title) > 8:
+                detail["title"] = title
 
     # 날짜: "일시/행사일/개최일/교육일정" 같은 라벨 근처의 날짜만 신뢰한다.
     # 라벨 없이 페이지 전체에서 아무 날짜나 잡으면, "작성일/등록일"처럼
@@ -389,22 +398,24 @@ def fetch_event_detail(url):
         if 1 <= month_num <= 12:
             detail["month"] = month_num
 
-    # 장소
-    m = re.search(r"장소[\s:*|]*\n?\s*([^\n]{2,60})", md)
+    # 장소 — 표 형태 페이지("장소 | 값 | 강사명 | 값")에서 다음 칸까지
+    # 캡처하지 않도록 '|'와 탭에서 멈춘다(실제로 "강 사 명"까지 섞여 들어간
+    # 적이 있었다).
+    m = re.search(r"장소[\s:*|]*\n?\s*([^\n|\t]{2,60})", md)
     if m:
         venue = normalize_text(m.group(1))
         if venue and "장소" not in venue:
             detail["venue"] = venue
 
     # 참가비
-    m = re.search(r"참가(?:료|비)[\s:*|]*\n?\s*([^\n]{1,40})", md)
+    m = re.search(r"참가(?:료|비)[\s:*|]*\n?\s*([^\n|\t]{1,40})", md)
     if m:
         cost = normalize_text(m.group(1))
         if cost:
             detail["cost"] = cost
 
     # 연사/강사
-    m = re.search(r"(?:연사|강사)[\s:*|]*\n?\s*([^\n]{2,120})", md)
+    m = re.search(r"(?:연사|강사)[\s:*|]*\n?\s*([^\n|\t]{2,120})", md)
     if m:
         speakers = normalize_text(m.group(1))
         if speakers:
@@ -414,7 +425,14 @@ def fetch_event_detail(url):
     m = re.search(r"(?:교육내용|커리큘럼|프로그램)[\s:*|]*\n((?:.{1,200}\n?){1,6})", md)
     if m:
         content = normalize_text(m.group(1))[:200]
-        if content:
+        # KIEI처럼 "인사말/행사개요/신청방법/세미나 신청하기" 같은 탭 메뉴가
+        # 실제 내용 대신 잡히는 경우가 있어, 그런 메뉴 문구만 있으면 버린다
+        # (버려야 아래 "이미지로 제공됨" 안내 로직이 대신 채워준다).
+        is_menu_like = bool(re.fullmatch(
+            r"[·\-\s]*(인사말|행사개요( 및 프로그램)?|신청방법( 및 장소안내)?|세미나 신청하기)[·\-\s]*",
+            content,
+        ))
+        if content and len(content) >= 15 and not is_menu_like:
             detail["content"] = content
 
     # 일부 사이트(KIEI, ksga.org 등)는 연사·프로그램 정보를 텍스트가 아니라
@@ -525,6 +543,18 @@ def update_last_updated(html, today):
     )
 
 
+def load_existing_titles(html):
+    """index.html에 이미 들어있는 모든 행사 제목의 중복 방지 키(title[:50])를 모은다.
+
+    crawled_items.json(처리 완료 목록)이 어떤 이유로든 실제 index.html과
+    어긋나면(예: 수동으로 index.html만 편집하고 처리 목록은 갱신 안 한 경우)
+    같은 행사가 다시 "신규"로 인식되어 중복 추가될 수 있다. crawled_items.json
+    하나에만 의존하지 않고, 실제 대시보드에 이미 있는 제목과도 직접 대조해
+    이런 드리프트에도 중복이 생기지 않도록 한다.
+    """
+    return {title[:50] for title in re.findall(r'title:"((?:[^"\\]|\\.)*)"', html)}
+
+
 def count_month_stats(html, month):
     """index.html의 D{month} 배열을 파싱해 현재 누적 현황 집계"""
     match = re.search(rf"const D{month}=\[([\s\S]*?)\];", html)
@@ -583,6 +613,8 @@ def main():
 
     processed = load_processed()
     _, proc_sha = gh_get_file(PROCESSED_FILE)
+    existing_html, _ = gh_get_file("index.html")
+    existing_titles = load_existing_titles(existing_html)
     all_items = []
 
     for name, url in SITES_REQUESTS:
@@ -619,7 +651,7 @@ def main():
     seen_titles = set()
     for item in all_items:
         key = item["title"][:50]
-        if key not in processed and key not in seen_titles:
+        if key not in processed and key not in seen_titles and key not in existing_titles:
             seen_titles.add(key)
             new_items.append(item)
 
